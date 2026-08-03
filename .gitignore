@@ -1,0 +1,9 @@
+node_modules
+dist
+.DS_Store
+*.local
+
+# Claude Code local tooling
+.agents/
+.claude/
+skills-lock.json
