@@ -5,13 +5,11 @@
 </script>
 
 <main class="app-layout">
-  <div class="body">
-    <JourneyPanel />
-    <div class="map-area">
-      <MapCanvas />
-    </div>
+  <JourneyPanel />
+  <div class="canvas-area">
+    <MapCanvas />
+    <PlaybackBar />
   </div>
-  <PlaybackBar />
 </main>
 
 <style>
@@ -19,17 +17,29 @@
     margin: 0;
     height: 100%;
   }
+  :global(*) {
+    box-sizing: border-box;
+  }
+  :global(body) {
+    font-family:
+      'Pretendard',
+      -apple-system,
+      BlinkMacSystemFont,
+      system-ui,
+      Roboto,
+      sans-serif;
+    color: #1d1d1f;
+  }
   .app-layout {
     display: flex;
-    flex-direction: column;
     height: 100vh;
+    background: #f8f9fa;
+    overflow: hidden;
   }
-  .body {
+  .canvas-area {
     flex: 1;
-    display: flex;
-    min-height: 0;
-  }
-  .map-area {
-    flex: 1;
+    min-width: 0;
+    position: relative;
+    background: #f4f5f7;
   }
 </style>

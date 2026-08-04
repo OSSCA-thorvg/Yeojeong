@@ -7,7 +7,9 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "check": "svelte-check --tsconfig ./tsconfig.json"
+    "check": "svelte-check --tsconfig ./tsconfig.json",
+    "gen:map": "node scripts/build-map-data.mjs",
+    "gen:cities": "node scripts/build-cities-data.mjs"
   },
   "dependencies": {
     "@thorvg/webcanvas": "^1.1.0"
@@ -15,9 +17,14 @@
   "devDependencies": {
     "@sveltejs/vite-plugin-svelte": "^7.2.0",
     "@tsconfig/svelte": "^5.0.8",
+    "all-the-cities": "^3.1.0",
+    "d3-geo": "^3.1.1",
+    "i18n-iso-countries": "^7.14.0",
     "svelte": "^5.56.8",
     "svelte-check": "^4.7.4",
+    "topojson-client": "^3.1.0",
     "typescript": "^5.9.3",
-    "vite": "^8.2.0"
+    "vite": "^8.2.0",
+    "world-atlas": "^2.0.2"
   }
 }
