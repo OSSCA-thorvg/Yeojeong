@@ -2,13 +2,11 @@ import type { Scene, ThorVGNamespace } from '@thorvg/webcanvas';
 import type { JourneyStop, TransportMode } from './types';
 import { project, type MapProjection } from './projection';
 
-const ACCENT_COLOR: [number, number, number] = [222, 90, 61];
 const UPCOMING_ALPHA = 90;
 const STOP_RADIUS = 3.5;
 const MARKER_RADIUS = 5.5;
 
-const TRANSPORT_COLOR: Record<TransportMode, [number, number, number]> = {
-  plane: ACCENT_COLOR,
+const TRANSPORT_COLOR: Record<Exclude<TransportMode, 'plane'>, [number, number, number]> = {
   ship: [60, 110, 190],
   train: [70, 130, 140],
   bus: [180, 140, 60],
@@ -26,6 +24,10 @@ const TRANSPORT_STYLE: Record<TransportMode, { width: number; dash?: number[] }>
   bike: { width: 1.8, dash: [2, 3] },
   walk: { width: 1.6, dash: [1, 3] },
 };
+
+function transportColor(mode: TransportMode, accent: [number, number, number]): [number, number, number] {
+  return mode === 'plane' ? accent : TRANSPORT_COLOR[mode];
+}
 
 const TRANSPORT_SPEED: Record<TransportMode, number> = {
   plane: 800,
@@ -175,6 +177,7 @@ export function buildJourneyPath(
   stops: JourneyStop[],
   progress: number,
   projection: MapProjection,
+  accent: [number, number, number],
 ): Scene {
   const scene = new TVG.Scene();
   if (stops.length === 0) return scene;
@@ -184,7 +187,7 @@ export function buildJourneyPath(
     const dot = new TVG.Shape();
     dot.appendCircle(x, y, MARKER_RADIUS);
     dot.fill(255, 255, 255);
-    dot.stroke({ width: 2, color: withAlpha(ACCENT_COLOR, 255) });
+    dot.stroke({ width: 2, color: withAlpha(accent, 255) });
     scene.add(dot);
     return scene;
   }
@@ -196,8 +199,8 @@ export function buildJourneyPath(
     const to = points[i + 1];
     const mode = stops[i + 1].arrivalMode as TransportMode;
     const style = TRANSPORT_STYLE[mode];
-    const traveledColor = withAlpha(TRANSPORT_COLOR[mode], 255);
-    const upcomingColor = withAlpha(ACCENT_COLOR, UPCOMING_ALPHA);
+    const traveledColor = withAlpha(transportColor(mode, accent), 255);
+    const upcomingColor = withAlpha(accent, UPCOMING_ALPHA);
     const curve = segmentCurve(from, to, mode);
     const segProgress = clamp01(traveled - i);
 
@@ -218,7 +221,7 @@ export function buildJourneyPath(
     const visited = i <= traveled;
     const dot = new TVG.Shape();
     dot.appendCircle(pt.x, pt.y, STOP_RADIUS);
-    dot.fill(...withAlpha(ACCENT_COLOR, visited ? 255 : UPCOMING_ALPHA));
+    dot.fill(...withAlpha(accent, visited ? 255 : UPCOMING_ALPHA));
     scene.add(dot);
   });
 
@@ -249,13 +252,13 @@ export function currentMarkerState(
   return { at: curvePoint(curve, segProgress), mode, dirX };
 }
 
-export function buildPulse(TVG: ThorVGNamespace, at: Point, phase: number): Scene {
+export function buildPulse(TVG: ThorVGNamespace, at: Point, phase: number, accent: [number, number, number]): Scene {
   const scene = new TVG.Scene();
   const radius = MARKER_RADIUS + phase * 16;
   const alpha = Math.round(160 * (1 - phase));
   const ring = new TVG.Shape();
   ring.appendCircle(at.x, at.y, radius);
-  ring.stroke({ width: 1.6, color: withAlpha(ACCENT_COLOR, alpha) });
+  ring.stroke({ width: 1.6, color: withAlpha(accent, alpha) });
   scene.add(ring);
   return scene;
 }

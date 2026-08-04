@@ -3,15 +3,12 @@ import worldLand from '../data/world-land.json';
 import countryBorders from '../data/country-borders.json';
 import countryLabels from '../data/country-labels.json';
 import { project, type MapProjection } from './projection';
+import type { MapPalette } from './mapTheme';
 
 type LandPolygon = number[][][]; // rings -> points -> [lon, lat]
 type CountryBorder = { name: string; polygons: LandPolygon[] };
 type CountryLabel = { name: string; lon: number; lat: number; area: number };
 
-const OCEAN_COLOR: [number, number, number] = [209, 232, 249];
-const LAND_COLOR: [number, number, number] = [247, 247, 250];
-const BORDER_COLOR: [number, number, number, number] = [200, 200, 206, 255];
-const LABEL_COLOR: [number, number, number] = [90, 90, 95];
 const LABEL_FONT = 'inter';
 const LABEL_FONT_SIZE = 8;
 const LABEL_PADDING = 4;
@@ -32,21 +29,21 @@ function tracePolygons(shape: Shape, polygons: LandPolygon[], projection: MapPro
   }
 }
 
-export function buildWorldMap(TVG: ThorVGNamespace, projection: MapProjection): Scene {
+export function buildWorldMap(TVG: ThorVGNamespace, projection: MapProjection, palette: MapPalette): Scene {
   const scene = new TVG.Scene();
 
   const [left, top] = project(90, -180, projection);
   const [right, bottom] = project(-90, 180, projection);
   const ocean = new TVG.Shape();
   ocean.appendRect(left, top, right - left, bottom - top);
-  ocean.fill(...OCEAN_COLOR);
+  ocean.fill(...palette.ocean);
   scene.add(ocean);
 
   for (const polygon of worldLand as LandPolygon[]) {
     const shape = new TVG.Shape();
     tracePolygons(shape, [polygon], projection);
     shape.fillRule(TVG.FillRule.EvenOdd);
-    shape.fill(...LAND_COLOR);
+    shape.fill(...palette.land);
     scene.add(shape);
   }
 
@@ -55,7 +52,7 @@ export function buildWorldMap(TVG: ThorVGNamespace, projection: MapProjection): 
     tracePolygons(shape, country.polygons, projection);
     shape.fillRule(TVG.FillRule.EvenOdd);
     shape.fill(0, 0, 0, 0);
-    shape.stroke({ width: 0.6, color: BORDER_COLOR });
+    shape.stroke({ width: 0.6, color: palette.border });
     scene.add(shape);
   }
 
@@ -88,7 +85,7 @@ function boxesOverlap(a: Box, b: Box, padding: number): boolean {
   );
 }
 
-export function buildCountryLabels(TVG: ThorVGNamespace, projection: MapProjection): Scene {
+export function buildCountryLabels(TVG: ThorVGNamespace, projection: MapProjection, palette: MapPalette): Scene {
   const scene = new TVG.Scene();
   const byArea = [...(countryLabels as CountryLabel[])].sort((a, b) => b.area - a.area);
   const placedBoxes: Box[] = [];
@@ -104,7 +101,7 @@ export function buildCountryLabels(TVG: ThorVGNamespace, projection: MapProjecti
     text.fontSize(LABEL_FONT_SIZE);
     text.text(label.name);
     text.align(0.5, 0.5);
-    text.fill(...LABEL_COLOR);
+    text.fill(...palette.label);
     text.translate(x, y);
     scene.add(text);
   }

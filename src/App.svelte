@@ -2,11 +2,13 @@
   import JourneyPanel from './lib/JourneyPanel.svelte';
   import MapCanvas from './lib/MapCanvas.svelte';
   import PlaybackBar from './lib/PlaybackBar.svelte';
+  import { currentTheme } from './lib/journey';
+  import { MAP_BACKGROUND_HEX } from './lib/mapTheme';
 </script>
 
 <main class="app-layout">
   <JourneyPanel />
-  <div class="canvas-area">
+  <div class="canvas-area" style="background: {MAP_BACKGROUND_HEX[$currentTheme]}">
     <MapCanvas />
     <PlaybackBar />
   </div>
@@ -40,6 +42,5 @@
     flex: 1;
     min-width: 0;
     position: relative;
-    background: #f4f5f7;
   }
 </style>

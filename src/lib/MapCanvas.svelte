@@ -4,7 +4,8 @@
   import type { Scene } from '@thorvg/webcanvas';
   import { buildWorldMap, buildCountryLabels, loadLabelFont } from './worldMap';
   import { buildJourneyPath, buildPulse, currentMarkerState } from './journeyPath';
-  import { journey, playbackProgress, isPlaying } from './journey';
+  import { journey, playbackProgress, isPlaying, currentTheme } from './journey';
+  import { MAP_PALETTES } from './mapTheme';
   import { TRANSPORT_ANIMATION, TRANSPORT_ANIMATION_BASE_FACING, TRANSPORT_ANIMATION_SCALE } from './transportAnimations';
   import type { MapProjection } from './projection';
   import type { JourneyStop, TransportMode } from './types';
@@ -22,6 +23,7 @@
   const FOLLOW_ZOOM = 6;
   const FOLLOW_EASE = 0.06;
 
+  let wrapEl: HTMLDivElement;
   let canvasEl: HTMLCanvasElement;
   let iconCanvasEl: HTMLCanvasElement;
   let TVG: ThorVGModule | undefined;
@@ -30,9 +32,12 @@
   let iconAnimation: InstanceType<ThorVGModule['LottieAnimation']> | undefined;
   let iconAnimMode: TransportMode | undefined;
   let rootScene: Scene | undefined;
+  let worldMapScene: Scene | undefined;
+  let labelScene: Scene | undefined;
   let journeyScene: Scene | undefined;
   let pulseScene: Scene | undefined;
   let projection: MapProjection | undefined;
+  let resizeObserver: ResizeObserver | undefined;
 
   let canvasCenterX = 0;
   let canvasCenterY = 0;
@@ -146,9 +151,48 @@
     applyTransform();
   }
 
-  function updateJourneyScene(stops: JourneyStop[], progress: number) {
+  function buildBaseMap(theme: 'light' | 'sepia' | 'dark') {
     if (!TVG || !rootScene || !projection) return;
-    const nextScene = buildJourneyPath(TVG, stops, progress, projection);
+    const palette = MAP_PALETTES[theme];
+    if (worldMapScene) {
+      rootScene.remove(worldMapScene);
+      worldMapScene.dispose();
+    }
+    if (labelScene) {
+      rootScene.remove(labelScene);
+      labelScene.dispose();
+    }
+    worldMapScene = buildWorldMap(TVG, projection, palette);
+    labelScene = buildCountryLabels(TVG, projection, palette);
+    rootScene.add(worldMapScene);
+    rootScene.add(labelScene);
+  }
+
+  function handleResize() {
+    if (!TVG || !canvas || !projection || !wrapEl) return;
+    const width = wrapEl.clientWidth;
+    const height = wrapEl.clientHeight;
+    if (width === 0 || height === 0) return;
+
+    canvas.resize(width, height);
+    canvasCenterX = width / 2;
+    canvasCenterY = height / 2;
+    projection.scale = Math.min(width / 360, height / 180) * 0.92;
+    mapHalfWidth = 180 * projection.scale;
+    mapHalfHeight = 90 * projection.scale;
+
+    const [x, y] = clampPan(panX, panY);
+    panX = x;
+    panY = y;
+
+    buildBaseMap($currentTheme);
+    updateJourneyScene($journey, $playbackProgress, MAP_PALETTES[$currentTheme].accent);
+    applyTransform();
+  }
+
+  function updateJourneyScene(stops: JourneyStop[], progress: number, accent: [number, number, number]) {
+    if (!TVG || !rootScene || !projection) return;
+    const nextScene = buildJourneyPath(TVG, stops, progress, projection, accent);
     if (journeyScene) {
       rootScene.remove(journeyScene);
       journeyScene.dispose();
@@ -158,7 +202,12 @@
     canvas?.update().render();
   }
 
-  $: if (rootScene) updateJourneyScene($journey, $playbackProgress);
+  $: if (rootScene) updateJourneyScene($journey, $playbackProgress, MAP_PALETTES[$currentTheme].accent);
+
+  $: if (rootScene && projection) {
+    buildBaseMap($currentTheme);
+    applyTransform();
+  }
 
   function pulseTick(time: number) {
     pulseRafId = requestAnimationFrame(pulseTick);
@@ -177,7 +226,7 @@
       return;
     }
     const phase = (time % PULSE_PERIOD_MS) / PULSE_PERIOD_MS;
-    pulseScene = buildPulse(TVG, state.at, phase);
+    pulseScene = buildPulse(TVG, state.at, phase, MAP_PALETTES[$currentTheme].accent);
     rootScene.add(pulseScene);
     canvas?.update().render();
 
@@ -190,31 +239,27 @@
 
   onMount(async () => {
     TVG = await ThorVG.init({ renderer: 'gl' });
-    const width = canvasEl.clientWidth;
-    const height = canvasEl.clientHeight;
+    const width = wrapEl.clientWidth || 1;
+    const height = wrapEl.clientHeight || 1;
     canvas = new TVG.Canvas(`#${canvasId}`, { width, height });
     iconCanvas = new TVG.Canvas(`#${iconCanvasId}`, { width: ICON_PX, height: ICON_PX });
 
-    canvasCenterX = width / 2;
-    canvasCenterY = height / 2;
-    const scale = Math.min(width / 360, height / 180) * 0.92;
-    projection = { centerX: 0, centerY: 0, scale };
-    mapHalfWidth = 180 * scale;
-    mapHalfHeight = 90 * scale;
+    projection = { centerX: 0, centerY: 0, scale: 1 };
 
     await loadLabelFont(TVG);
 
     rootScene = new TVG.Scene();
-    rootScene.add(buildWorldMap(TVG, projection));
-    rootScene.add(buildCountryLabels(TVG, projection));
     canvas.add(rootScene);
-    applyTransform();
+    handleResize();
+    resizeObserver = new ResizeObserver(() => handleResize());
+    resizeObserver.observe(wrapEl);
 
     pulseRafId = requestAnimationFrame(pulseTick);
   });
 
   onDestroy(() => {
     if (pulseRafId !== null) cancelAnimationFrame(pulseRafId);
+    resizeObserver?.disconnect();
     // WASM memory sits outside JS GC — must release explicitly on unmount.
     rootScene?.dispose();
     canvas?.destroy();
@@ -224,7 +269,7 @@
   });
 </script>
 
-<div class="map-wrap">
+<div class="map-wrap" bind:this={wrapEl}>
   <canvas
     bind:this={canvasEl}
     id={canvasId}
