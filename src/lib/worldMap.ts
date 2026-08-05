@@ -13,6 +13,16 @@ const LABEL_FONT = 'inter';
 const LABEL_FONT_SIZE = 8;
 const LABEL_PADDING = 4;
 
+function shade(c: [number, number, number], factor: number): [number, number, number] {
+  const mix = (v: number) => (factor >= 0 ? v + (255 - v) * factor : v * (1 + factor));
+  return [Math.round(mix(c[0])), Math.round(mix(c[1])), Math.round(mix(c[2]))];
+}
+
+function shadeStop(c: [number, number, number], factor: number, a = 255): [number, number, number, number] {
+  const [r, g, b] = shade(c, factor);
+  return [r, g, b, a];
+}
+
 function tracePolygons(shape: Shape, polygons: LandPolygon[], projection: MapProjection): void {
   for (const polygon of polygons) {
     for (const ring of polygon) {
@@ -29,23 +39,59 @@ function tracePolygons(shape: Shape, polygons: LandPolygon[], projection: MapPro
   }
 }
 
+function luminance([r, g, b]: [number, number, number]): number {
+  return (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255;
+}
+
 export function buildWorldMap(TVG: ThorVGNamespace, projection: MapProjection, palette: MapPalette): Scene {
   const scene = new TVG.Scene();
 
   const [left, top] = project(90, -180, projection);
   const [right, bottom] = project(-90, 180, projection);
+  const [centerX, centerY] = project(0, 0, projection);
+
+  const oceanRadius = Math.hypot(right - centerX, bottom - centerY);
+  const oceanGradient = new TVG.RadialGradient(centerX, centerY, oceanRadius);
+  oceanGradient
+    .addStop(0, shadeStop(palette.ocean, 0.12))
+    .addStop(1, shadeStop(palette.ocean, -0.4))
+    .build();
   const ocean = new TVG.Shape();
-  ocean.appendRect(left, top, right - left, bottom - top);
-  ocean.fill(...palette.ocean);
+  const worldW = right - left;
+  const worldH = bottom - top;
+  const OCEAN_PAD = 1.5;
+  ocean.appendRect(
+    left - worldW * OCEAN_PAD,
+    top - worldH * OCEAN_PAD,
+    worldW * (1 + OCEAN_PAD * 2),
+    worldH * (1 + OCEAN_PAD * 2),
+  );
+  ocean.fill(oceanGradient);
   scene.add(ocean);
 
+  const landScene = new TVG.Scene();
   for (const polygon of worldLand as LandPolygon[]) {
     const shape = new TVG.Shape();
     tracePolygons(shape, [polygon], projection);
     shape.fillRule(TVG.FillRule.EvenOdd);
-    shape.fill(...palette.land);
-    scene.add(shape);
+
+    const bounds = shape.bounds();
+    const gradient = new TVG.LinearGradient(0, bounds.y, 0, bounds.y + bounds.height);
+    gradient
+      .addStop(0, shadeStop(palette.land, 0.16))
+      .addStop(1, shadeStop(palette.land, -0.14))
+      .build();
+    shape.fill(gradient);
+    landScene.add(shape);
   }
+
+  if (luminance(palette.ocean) < 0.3) {
+    landScene.dropShadow(...palette.accent, 130, 0, 0, 3.5, 65);
+  } else {
+    const shadowColor = shade(palette.land, -0.7);
+    landScene.dropShadow(...shadowColor, 90, 115, 1.4, 1.8, 60);
+  }
+  scene.add(landScene);
 
   for (const country of countryBorders as CountryBorder[]) {
     const shape = new TVG.Shape();

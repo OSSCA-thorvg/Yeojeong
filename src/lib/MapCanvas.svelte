@@ -4,8 +4,8 @@
   import { getThorVG, type ThorVGModule } from './thorvg';
   import { buildWorldMap, buildCountryLabels, loadLabelFont } from './worldMap';
   import { buildJourneyPath, buildPulse, buildArrivalPin, currentMarkerState, type Point } from './journeyPath';
-  import { journey, playbackProgress, isPlaying, currentTheme, isExporting } from './journey';
-  import { MAP_PALETTES } from './mapTheme';
+  import { journey, playbackProgress, isPlaying, mapPalette, isExporting } from './journey';
+  import type { MapPalette } from './mapTheme';
   import {
     TRANSPORT_ANIMATION,
     TRANSPORT_ANIMATION_BASE_FACING,
@@ -192,9 +192,8 @@
     applyTransform();
   }
 
-  function buildBaseMap(theme: 'light' | 'sepia' | 'dark') {
+  function buildBaseMap(palette: MapPalette) {
     if (!TVG || !rootScene || !projection) return;
-    const palette = MAP_PALETTES[theme];
     if (worldMapScene) {
       rootScene.remove(worldMapScene);
       worldMapScene.dispose();
@@ -226,8 +225,8 @@
     panX = x;
     panY = y;
 
-    buildBaseMap($currentTheme);
-    updateJourneyScene($journey, $playbackProgress, MAP_PALETTES[$currentTheme].accent);
+    buildBaseMap($mapPalette);
+    updateJourneyScene($journey, $playbackProgress, $mapPalette.accent);
     applyTransform();
   }
 
@@ -243,10 +242,10 @@
     canvas?.update().render();
   }
 
-  $: if (rootScene) updateJourneyScene($journey, $playbackProgress, MAP_PALETTES[$currentTheme].accent);
+  $: if (rootScene) updateJourneyScene($journey, $playbackProgress, $mapPalette.accent);
 
   $: if (rootScene && projection) {
-    buildBaseMap($currentTheme);
+    buildBaseMap($mapPalette);
     applyTransform();
   }
 
@@ -284,7 +283,7 @@
     }
 
     const phase = (time % PULSE_PERIOD_MS) / PULSE_PERIOD_MS;
-    pulseScene = buildPulse(TVG, state.at, phase, MAP_PALETTES[$currentTheme].accent, markerVisualScale());
+    pulseScene = buildPulse(TVG, state.at, phase, $mapPalette.accent, markerVisualScale());
     rootScene.add(pulseScene);
     canvas?.update().render();
 

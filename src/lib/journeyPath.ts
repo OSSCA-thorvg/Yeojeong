@@ -195,6 +195,8 @@ export function buildJourneyPath(
 
   const { points, segmentCount, traveled } = segmentPosition(stops, progress, projection);
 
+  const lineScene = new TVG.Scene();
+
   for (let i = 0; i < segmentCount; i++) {
     const from = points[i];
     const to = points[i + 1];
@@ -207,16 +209,16 @@ export function buildJourneyPath(
     const segProgress = clamp01(traveled - i);
 
     if (segProgress <= 0) {
-      drawCurve(TVG, scene, curve, upcomingColor, style);
+      drawCurve(TVG, lineScene, curve, upcomingColor, style);
       continue;
     }
     if (segProgress >= 1) {
-      drawCurve(TVG, scene, curve, traveledColor, style);
+      drawCurve(TVG, lineScene, curve, traveledColor, style);
       continue;
     }
     const [traveledCurve, upcomingCurve] = splitCurve(curve, segProgress);
-    drawCurve(TVG, scene, traveledCurve, traveledColor, style);
-    drawCurve(TVG, scene, upcomingCurve, upcomingColor, style);
+    drawCurve(TVG, lineScene, traveledCurve, traveledColor, style);
+    drawCurve(TVG, lineScene, upcomingCurve, upcomingColor, style);
   }
 
   points.forEach((pt, i) => {
@@ -224,8 +226,11 @@ export function buildJourneyPath(
     const dot = new TVG.Shape();
     dot.appendCircle(pt.x, pt.y, STOP_RADIUS * visualScale);
     dot.fill(...withAlpha(accent, visited ? 255 : UPCOMING_ALPHA));
-    scene.add(dot);
+    lineScene.add(dot);
   });
+
+  lineScene.dropShadow(0, 0, 0, 70, 115, 1 * visualScale, 1.4 * visualScale, 55);
+  scene.add(lineScene);
 
   return scene;
 }
@@ -282,6 +287,8 @@ export function buildArrivalPin(TVG: ThorVGNamespace, at: Point, visualScale: nu
   hole.fill(255, 255, 255);
   scene.add(hole);
 
+  scene.dropShadow(0, 0, 0, 110, 115, 1.6 * visualScale, 2 * visualScale, 55);
+
   return scene;
 }
 
@@ -299,5 +306,6 @@ export function buildPulse(
   ring.appendCircle(at.x, at.y, radius);
   ring.stroke({ width: 1.6 * visualScale, color: withAlpha(accent, alpha) });
   scene.add(ring);
+  scene.gaussianBlur(1.1 * visualScale, 0, 0, 55);
   return scene;
 }

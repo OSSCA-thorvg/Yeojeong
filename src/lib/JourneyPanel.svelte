@@ -1,15 +1,27 @@
 <script lang="ts">
-  import { journey, currentTheme, isExporting, playbackProgress, isWrappedOpen } from './journey';
+  import {
+    journey,
+    currentTheme,
+    customOcean,
+    customLand,
+    customLabel,
+    isExporting,
+    playbackProgress,
+    isWrappedOpen,
+  } from './journey';
   import cities from '../data/cities.json';
   import { TRANSPORT_MODES, TRANSPORT_ICON, TRANSPORT_LABEL } from './transportIcons';
+  import { toHex, hexToRgb } from './mapTheme';
+  import type { MapTheme } from './mapTheme';
   import type { City, JourneyStop, TransportMode } from './types';
 
   export let onExport: () => void = () => {};
 
-  const themes: { id: 'light' | 'sepia' | 'dark'; label: string; class: string }[] = [
+  const themes: { id: MapTheme; label: string; class: string }[] = [
     { id: 'light', label: '기본', class: '' },
     { id: 'sepia', label: '빈티지', class: 'vintage' },
     { id: 'dark', label: '네온', class: 'neon' },
+    { id: 'custom', label: '커스텀', class: 'custom' },
   ];
 
   const transportModes = TRANSPORT_MODES.map((id) => ({
@@ -177,6 +189,34 @@
         </button>
       {/each}
     </div>
+    {#if $currentTheme === 'custom'}
+      <div class="custom-colors">
+        <label class="color-field">
+          <input
+            type="color"
+            value={toHex($customOcean)}
+            on:input={(e) => customOcean.set(hexToRgb(e.currentTarget.value))}
+          />
+          <span>바다색</span>
+        </label>
+        <label class="color-field">
+          <input
+            type="color"
+            value={toHex($customLand)}
+            on:input={(e) => customLand.set(hexToRgb(e.currentTarget.value))}
+          />
+          <span>육지색</span>
+        </label>
+        <label class="color-field">
+          <input
+            type="color"
+            value={toHex($customLabel)}
+            on:input={(e) => customLabel.set(hexToRgb(e.currentTarget.value))}
+          />
+          <span>텍스트색</span>
+        </label>
+      </div>
+    {/if}
   </div>
   </div>
 
@@ -439,8 +479,44 @@
     background: #1a1a24;
     color: #00ffcc;
   }
+  .theme-btn.custom {
+    background: #f2f2f7;
+    color: #1d1d1f;
+  }
   .theme-btn.active {
     border-color: #007aff;
+  }
+  .custom-colors {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px 16px;
+    margin-top: 10px;
+  }
+  .color-field {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    color: #48484a;
+    cursor: pointer;
+  }
+  .color-field input[type='color'] {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    background: none;
+  }
+  .color-field input[type='color']::-webkit-color-swatch-wrapper {
+    padding: 0;
+  }
+  .color-field input[type='color']::-webkit-color-swatch {
+    border: 1px solid #e5e5ea;
+    border-radius: 6px;
   }
   .wrapped-btn {
     background: #1d1d1f;

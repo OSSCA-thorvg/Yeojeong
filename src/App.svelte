@@ -3,15 +3,15 @@
   import MapCanvas from './lib/MapCanvas.svelte';
   import PlaybackBar from './lib/PlaybackBar.svelte';
   import WrappedCard from './lib/WrappedCard.svelte';
-  import { currentTheme, isWrappedOpen } from './lib/journey';
-  import { MAP_BACKGROUND_HEX } from './lib/mapTheme';
+  import { mapPalette, isWrappedOpen } from './lib/journey';
+  import { toHex } from './lib/mapTheme';
 
   let mapCanvas: MapCanvas;
 </script>
 
 <main class="app-layout">
   <JourneyPanel onExport={() => mapCanvas?.exportVideo()} />
-  <div class="canvas-area" style="background: {MAP_BACKGROUND_HEX[$currentTheme]}">
+  <div class="canvas-area" style="background: {toHex($mapPalette.ocean)}">
     <MapCanvas bind:this={mapCanvas} />
     <PlaybackBar />
   </div>

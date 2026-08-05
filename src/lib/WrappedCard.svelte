@@ -6,8 +6,7 @@
   import { buildWrappedScene } from './wrappedScene';
   import { computeJourneyStats } from './journeyStats';
   import { transportColor } from './journeyPath';
-  import { journey, currentTheme, isWrappedOpen } from './journey';
-  import { MAP_PALETTES } from './mapTheme';
+  import { journey, mapPalette, isWrappedOpen } from './journey';
   import { TRANSPORT_LABEL } from './transportIcons';
 
   const CANVAS_ID = 'wrapped-canvas';
@@ -22,7 +21,7 @@
   let rafId: number | null = null;
 
   $: stats = computeJourneyStats($journey);
-  $: accent = MAP_PALETTES[$currentTheme].accent;
+  $: accent = $mapPalette.accent;
 
   function renderFrame(progress: number) {
     if (!TVG || !canvas) return;
