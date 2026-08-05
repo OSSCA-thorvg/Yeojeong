@@ -4,12 +4,14 @@
   import PlaybackBar from './lib/PlaybackBar.svelte';
   import { currentTheme } from './lib/journey';
   import { MAP_BACKGROUND_HEX } from './lib/mapTheme';
+
+  let mapCanvas: MapCanvas;
 </script>
 
 <main class="app-layout">
-  <JourneyPanel />
+  <JourneyPanel onExport={() => mapCanvas?.exportVideo()} />
   <div class="canvas-area" style="background: {MAP_BACKGROUND_HEX[$currentTheme]}">
-    <MapCanvas />
+    <MapCanvas bind:this={mapCanvas} />
     <PlaybackBar />
   </div>
 </main>

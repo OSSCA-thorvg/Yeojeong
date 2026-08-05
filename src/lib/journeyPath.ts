@@ -59,7 +59,7 @@ function clamp01(n: number): number {
 
 const ARC_BULGE_RATIO = 0.16;
 
-interface Point {
+export interface Point {
   x: number;
   y: number;
 }
@@ -178,6 +178,7 @@ export function buildJourneyPath(
   progress: number,
   projection: MapProjection,
   accent: [number, number, number],
+  visualScale: number = 1,
 ): Scene {
   const scene = new TVG.Scene();
   if (stops.length === 0) return scene;
@@ -185,9 +186,9 @@ export function buildJourneyPath(
   if (stops.length === 1) {
     const [x, y] = project(stops[0].city.lat, stops[0].city.lng, projection);
     const dot = new TVG.Shape();
-    dot.appendCircle(x, y, MARKER_RADIUS);
+    dot.appendCircle(x, y, MARKER_RADIUS * visualScale);
     dot.fill(255, 255, 255);
-    dot.stroke({ width: 2, color: withAlpha(accent, 255) });
+    dot.stroke({ width: 2 * visualScale, color: withAlpha(accent, 255) });
     scene.add(dot);
     return scene;
   }
@@ -198,7 +199,8 @@ export function buildJourneyPath(
     const from = points[i];
     const to = points[i + 1];
     const mode = stops[i + 1].arrivalMode as TransportMode;
-    const style = TRANSPORT_STYLE[mode];
+    const baseStyle = TRANSPORT_STYLE[mode];
+    const style = { width: baseStyle.width * visualScale, dash: baseStyle.dash?.map((d) => d * visualScale) };
     const traveledColor = withAlpha(transportColor(mode, accent), 255);
     const upcomingColor = withAlpha(accent, UPCOMING_ALPHA);
     const curve = segmentCurve(from, to, mode);
@@ -220,7 +222,7 @@ export function buildJourneyPath(
   points.forEach((pt, i) => {
     const visited = i <= traveled;
     const dot = new TVG.Shape();
-    dot.appendCircle(pt.x, pt.y, STOP_RADIUS);
+    dot.appendCircle(pt.x, pt.y, STOP_RADIUS * visualScale);
     dot.fill(...withAlpha(accent, visited ? 255 : UPCOMING_ALPHA));
     scene.add(dot);
   });
@@ -232,6 +234,8 @@ export interface MarkerState {
   at: Point;
   mode: TransportMode;
   dirX: 1 | -1;
+  from: Point;
+  to: Point;
 }
 
 export function currentMarkerState(
@@ -249,16 +253,51 @@ export function currentMarkerState(
   const mode = stops[markerIndex + 1].arrivalMode as TransportMode;
   const curve = segmentCurve(from, to, mode);
   const dirX: 1 | -1 = to.x >= from.x ? 1 : -1;
-  return { at: curvePoint(curve, segProgress), mode, dirX };
+  return { at: curvePoint(curve, segProgress), mode, dirX, from, to };
 }
 
-export function buildPulse(TVG: ThorVGNamespace, at: Point, phase: number, accent: [number, number, number]): Scene {
+const ARRIVAL_PIN_COLOR: [number, number, number] = [217, 48, 37];
+
+export function buildArrivalPin(TVG: ThorVGNamespace, at: Point, visualScale: number): Scene {
   const scene = new TVG.Scene();
-  const radius = MARKER_RADIUS + phase * 16;
+  const headRadius = MARKER_RADIUS * 1.4 * visualScale;
+  const headCenterY = at.y - headRadius * 1.8;
+
+  const tail = new TVG.Shape();
+  tail.moveTo(at.x, at.y);
+  tail.lineTo(at.x - headRadius * 0.55, headCenterY + headRadius * 0.4);
+  tail.lineTo(at.x + headRadius * 0.55, headCenterY + headRadius * 0.4);
+  tail.close();
+  tail.fill(...ARRIVAL_PIN_COLOR);
+  scene.add(tail);
+
+  const head = new TVG.Shape();
+  head.appendCircle(at.x, headCenterY, headRadius);
+  head.fill(...ARRIVAL_PIN_COLOR);
+  head.stroke({ width: 1.4 * visualScale, color: [255, 255, 255, 255] });
+  scene.add(head);
+
+  const hole = new TVG.Shape();
+  hole.appendCircle(at.x, headCenterY, headRadius * 0.38);
+  hole.fill(255, 255, 255);
+  scene.add(hole);
+
+  return scene;
+}
+
+export function buildPulse(
+  TVG: ThorVGNamespace,
+  at: Point,
+  phase: number,
+  accent: [number, number, number],
+  visualScale: number = 1,
+): Scene {
+  const scene = new TVG.Scene();
+  const radius = (MARKER_RADIUS + phase * 16) * visualScale;
   const alpha = Math.round(160 * (1 - phase));
   const ring = new TVG.Shape();
   ring.appendCircle(at.x, at.y, radius);
-  ring.stroke({ width: 1.6, color: withAlpha(accent, alpha) });
+  ring.stroke({ width: 1.6 * visualScale, color: withAlpha(accent, alpha) });
   scene.add(ring);
   return scene;
 }

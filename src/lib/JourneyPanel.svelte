@@ -1,8 +1,10 @@
 <script lang="ts">
-  import { journey, currentTheme } from './journey';
+  import { journey, currentTheme, isExporting, playbackProgress } from './journey';
   import cities from '../data/cities.json';
   import { TRANSPORT_MODES, TRANSPORT_ICON, TRANSPORT_LABEL } from './transportIcons';
   import type { City, JourneyStop, TransportMode } from './types';
+
+  export let onExport: () => void = () => {};
 
   const themes: { id: 'light' | 'sepia' | 'dark'; label: string; class: string }[] = [
     { id: 'light', label: '기본', class: '' },
@@ -80,6 +82,7 @@
 
 <aside class="sidebar">
   <div class="logo">📔 여정</div>
+  <div class="sidebar-content" class:locked={$isExporting} inert={$isExporting}>
   <div class="search-wrap">
     <input class="search-box" type="text" placeholder="🔍 다녀온 도시 검색..." bind:value={query} />
     {#if results.length > 0}
@@ -175,8 +178,20 @@
       {/each}
     </div>
   </div>
+  </div>
 
-  <button type="button" class="export-btn">💾 영상으로 내보내기</button>
+  <button
+    type="button"
+    class="export-btn"
+    disabled={$isExporting || $journey.length < 2}
+    on:click={onExport}
+  >
+    {#if $isExporting}
+      ⏳ 내보내는 중... {Math.round($playbackProgress * 100)}%
+    {:else}
+      💾 영상으로 내보내기
+    {/if}
+  </button>
 </aside>
 
 <style>
@@ -195,6 +210,16 @@
     font-weight: 800;
     margin-bottom: 30px;
     color: #007aff;
+  }
+  .sidebar-content {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+    transition: opacity 0.15s ease;
+  }
+  .sidebar-content.locked {
+    opacity: 0.5;
   }
   .search-wrap {
     position: relative;
@@ -418,5 +443,9 @@
     font-weight: 700;
     cursor: pointer;
     box-shadow: 0 4px 12px rgba(0, 122, 255, 0.3);
+  }
+  .export-btn:disabled {
+    opacity: 0.6;
+    cursor: default;
   }
 </style>

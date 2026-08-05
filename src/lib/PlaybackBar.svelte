@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onDestroy } from 'svelte';
-  import { isPlaying, playbackProgress } from './journey';
+  import { isPlaying, playbackProgress, isExporting } from './journey';
 
   const DURATION_MS = 18000;
   const SPEEDS = [1, 1.5, 2];
@@ -38,7 +38,13 @@
 
   onDestroy(stop);
 
+  $: if ($isExporting && rafId !== null) {
+    cancelAnimationFrame(rafId);
+    rafId = null;
+  }
+
   function togglePlay() {
+    if ($isExporting) return;
     if ($isPlaying) {
       stop();
       return;
@@ -53,7 +59,7 @@
 </script>
 
 <div class="player-controls">
-  <button type="button" class="play-btn" on:click={togglePlay}>{$isPlaying ? '⏸' : '▶'}</button>
+  <button type="button" class="play-btn" disabled={$isExporting} on:click={togglePlay}>{$isPlaying ? '⏸' : '▶'}</button>
   <div class="progress-bar">
     <div class="progress-fill" style="width: {$playbackProgress * 100}%"></div>
     <input
@@ -62,11 +68,12 @@
       min="0"
       max="1"
       step="0.001"
+      disabled={$isExporting}
       bind:value={$playbackProgress}
       aria-label="재생 진행률"
     />
   </div>
-  <button type="button" class="speed-btn" on:click={cycleSpeed}>{speed}x</button>
+  <button type="button" class="speed-btn" disabled={$isExporting} on:click={cycleSpeed}>{speed}x</button>
 </div>
 
 <style>
