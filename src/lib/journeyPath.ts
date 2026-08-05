@@ -6,7 +6,7 @@ const UPCOMING_ALPHA = 90;
 const STOP_RADIUS = 3.5;
 const MARKER_RADIUS = 5.5;
 
-const TRANSPORT_COLOR: Record<Exclude<TransportMode, 'plane'>, [number, number, number]> = {
+export const TRANSPORT_COLOR: Record<Exclude<TransportMode, 'plane'>, [number, number, number]> = {
   ship: [60, 110, 190],
   train: [70, 130, 140],
   bus: [180, 140, 60],
@@ -25,7 +25,7 @@ const TRANSPORT_STYLE: Record<TransportMode, { width: number; dash?: number[] }>
   walk: { width: 1.6, dash: [1, 3] },
 };
 
-function transportColor(mode: TransportMode, accent: [number, number, number]): [number, number, number] {
+export function transportColor(mode: TransportMode, accent: [number, number, number]): [number, number, number] {
   return mode === 'plane' ? accent : TRANSPORT_COLOR[mode];
 }
 
@@ -39,7 +39,7 @@ const TRANSPORT_SPEED: Record<TransportMode, number> = {
   walk: 5,
 };
 
-function haversineKm(a: { lat: number; lng: number }, b: { lat: number; lng: number }): number {
+export function haversineKm(a: { lat: number; lng: number }, b: { lat: number; lng: number }): number {
   const R = 6371;
   const dLat = ((b.lat - a.lat) * Math.PI) / 180;
   const dLng = ((b.lng - a.lng) * Math.PI) / 180;

@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte';
-  import ThorVG from '@thorvg/webcanvas';
   import type { Scene } from '@thorvg/webcanvas';
+  import { getThorVG, type ThorVGModule } from './thorvg';
   import { buildWorldMap, buildCountryLabels, loadLabelFont } from './worldMap';
   import { buildJourneyPath, buildPulse, buildArrivalPin, currentMarkerState, type Point } from './journeyPath';
   import { journey, playbackProgress, isPlaying, currentTheme, isExporting } from './journey';
@@ -14,8 +14,6 @@
   } from './transportAnimations';
   import type { MapProjection } from './projection';
   import type { JourneyStop, TransportMode } from './types';
-
-  type ThorVGModule = Awaited<ReturnType<typeof ThorVG.init>>;
 
   const canvasId = 'yeojeong-map-canvas';
   const iconCanvasId = 'yeojeong-icon-canvas';
@@ -410,7 +408,7 @@
   }
 
   onMount(async () => {
-    TVG = await ThorVG.init({ renderer: 'gl' });
+    TVG = await getThorVG();
     const width = wrapEl.clientWidth || 1;
     const height = wrapEl.clientHeight || 1;
     canvas = new TVG.Canvas(`#${canvasId}`, { width, height });
@@ -437,7 +435,6 @@
     canvas?.destroy();
     iconAnimation?.dispose();
     iconCanvas?.destroy();
-    TVG?.term();
   });
 </script>
 

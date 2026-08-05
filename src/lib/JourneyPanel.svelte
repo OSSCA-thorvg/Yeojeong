@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { journey, currentTheme, isExporting, playbackProgress } from './journey';
+  import { journey, currentTheme, isExporting, playbackProgress, isWrappedOpen } from './journey';
   import cities from '../data/cities.json';
   import { TRANSPORT_MODES, TRANSPORT_ICON, TRANSPORT_LABEL } from './transportIcons';
   import type { City, JourneyStop, TransportMode } from './types';
@@ -179,6 +179,15 @@
     </div>
   </div>
   </div>
+
+  <button
+    type="button"
+    class="wrapped-btn"
+    disabled={$isExporting || $journey.length < 2}
+    on:click={() => isWrappedOpen.set(true)}
+  >
+    🎁 여행 리캡 보기
+  </button>
 
   <button
     type="button"
@@ -432,6 +441,21 @@
   }
   .theme-btn.active {
     border-color: #007aff;
+  }
+  .wrapped-btn {
+    background: #1d1d1f;
+    color: white;
+    border: none;
+    border-radius: 12px;
+    padding: 14px;
+    font-size: 15px;
+    font-weight: 700;
+    cursor: pointer;
+    margin-bottom: 10px;
+  }
+  .wrapped-btn:disabled {
+    opacity: 0.6;
+    cursor: default;
   }
   .export-btn {
     background: #007aff;

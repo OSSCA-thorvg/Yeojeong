@@ -2,7 +2,8 @@
   import JourneyPanel from './lib/JourneyPanel.svelte';
   import MapCanvas from './lib/MapCanvas.svelte';
   import PlaybackBar from './lib/PlaybackBar.svelte';
-  import { currentTheme } from './lib/journey';
+  import WrappedCard from './lib/WrappedCard.svelte';
+  import { currentTheme, isWrappedOpen } from './lib/journey';
   import { MAP_BACKGROUND_HEX } from './lib/mapTheme';
 
   let mapCanvas: MapCanvas;
@@ -14,6 +15,9 @@
     <MapCanvas bind:this={mapCanvas} />
     <PlaybackBar />
   </div>
+  {#if $isWrappedOpen}
+    <WrappedCard />
+  {/if}
 </main>
 
 <style>
