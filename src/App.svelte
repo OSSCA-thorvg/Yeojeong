@@ -37,16 +37,29 @@
       Roboto,
       sans-serif;
     color: #1d1d1f;
+    overscroll-behavior: none;
+    -webkit-text-size-adjust: 100%;
   }
   .app-layout {
     display: flex;
     height: 100vh;
+    height: 100dvh;
     background: #f8f9fa;
     overflow: hidden;
   }
   .canvas-area {
     flex: 1;
     min-width: 0;
+    min-height: 0;
     position: relative;
+  }
+
+  @media (max-width: 860px) and (orientation: portrait) {
+    .app-layout {
+      flex-direction: column-reverse;
+    }
+    .canvas-area {
+      min-height: 38dvh;
+    }
   }
 </style>

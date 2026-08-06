@@ -33,9 +33,19 @@ export const TRANSPORT_ANIMATION_SCALE: Record<TransportMode, number> = {
   ship: 0.85,
   car: 0.95,
   train: 0.5,
-  bus: 0.55,
+  bus: 1.2,
   bike: 0.55,
   walk: 0.85,
+};
+
+export const TRANSPORT_ANIMATION_SPEED: Record<TransportMode, number> = {
+  plane: 3.5,
+  ship: 3,
+  car: 0.95,
+  train: 1.2,
+  bus: 0.4,
+  bike: 1.35,
+  walk: 1.05,
 };
 
 export const TRANSPORT_ANIMATION_ANCHOR: Record<TransportMode, 'center' | 'bottom'> = {

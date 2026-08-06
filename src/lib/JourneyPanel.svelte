@@ -9,7 +9,9 @@
     playbackProgress,
     isWrappedOpen,
   } from './journey';
-  import cities from '../data/cities.json';
+  import { onDestroy } from 'svelte';
+  import { searchCities, hasHangul, MIN_QUERY_LENGTH, SEARCH_DEBOUNCE_MS } from './cityIndex';
+  import logoImage from '../data/image/logo.jpeg';
   import { TRANSPORT_MODES, TRANSPORT_ICON, TRANSPORT_LABEL } from './transportIcons';
   import { toHex, hexToRgb } from './mapTheme';
   import type { MapTheme } from './mapTheme';
@@ -33,13 +35,51 @@
   let query = '';
   let dragIndex: number | null = null;
   let dragOverIndex: number | null = null;
+  let collapsed = false;
 
-  $: trimmedQuery = query.trim().toLowerCase();
-  $: results = trimmedQuery
-    ? (cities as City[])
-        .filter((c) => c.name.toLowerCase().includes(trimmedQuery) || c.country.toLowerCase().includes(trimmedQuery))
-        .slice(0, 8)
-    : [];
+  let results: City[] = [];
+  let searchState: 'idle' | 'loading' | 'done' | 'error' = 'idle';
+  let searchError = '';
+  let debounceTimer: ReturnType<typeof setTimeout> | undefined;
+  let inFlight: AbortController | undefined;
+
+  $: scheduleSearch(query);
+
+  function scheduleSearch(value: string) {
+    clearTimeout(debounceTimer);
+    inFlight?.abort();
+    inFlight = undefined;
+
+    if (value.trim().length < MIN_QUERY_LENGTH) {
+      results = [];
+      searchState = 'idle';
+      return;
+    }
+
+    searchState = 'loading';
+    debounceTimer = setTimeout(() => runSearch(value), SEARCH_DEBOUNCE_MS);
+  }
+
+  async function runSearch(value: string) {
+    const controller = new AbortController();
+    inFlight = controller;
+    try {
+      const found = await searchCities(value, controller.signal);
+      if (controller.signal.aborted) return;
+      results = found;
+      searchState = 'done';
+    } catch (error) {
+      if (controller.signal.aborted) return;
+      results = [];
+      searchError = error instanceof Error ? error.message : '검색에 실패했어요';
+      searchState = 'error';
+    }
+  }
+
+  onDestroy(() => {
+    clearTimeout(debounceTimer);
+    inFlight?.abort();
+  });
 
   function addStop(city: City) {
     journey.update((stops) => [...stops, { city, arrivalMode: stops.length === 0 ? null : 'plane' }]);
@@ -92,8 +132,17 @@
   }
 </script>
 
-<aside class="sidebar">
-  <div class="logo">📔 여정</div>
+<aside class="sidebar" class:collapsed>
+  <button
+    type="button"
+    class="sheet-toggle"
+    aria-expanded={!collapsed}
+    on:click={() => (collapsed = !collapsed)}
+  >
+    <span class="sheet-grip"></span>
+    <span class="sheet-label">{collapsed ? '여정 편집 열기' : '접기'}</span>
+  </button>
+  <div class="logo"><img src={logoImage} alt="logo" /></div>
   <div class="sidebar-content" class:locked={$isExporting} inert={$isExporting}>
   <div class="search-wrap">
     <input class="search-box" type="text" placeholder="🔍 다녀온 도시 검색..." bind:value={query} />
@@ -107,13 +156,22 @@
           </li>
         {/each}
       </ul>
-    {:else if query.trim()}
-      <div class="search-empty">일치하는 도시가 없어요</div>
+    {:else if searchState === 'loading'}
+      <div class="search-empty">검색 중...</div>
+    {:else if searchState === 'error'}
+      <div class="search-empty error">{searchError}</div>
+    {:else if searchState === 'done'}
+      <div class="search-empty">
+        일치하는 도시가 없어요
+        {#if hasHangul(query)}
+          <span class="hint">영문 이름으로도 검색해 보세요 (예: 세부 → Cebu)</span>
+        {/if}
+      </div>
     {/if}
   </div>
 
   <ul class="route-list">
-    {#each $journey as stop, i (stop.city.id)}
+    {#each $journey as stop, i}
       <li
         class="route-item"
         class:dragging={dragIndex === i}
@@ -253,12 +311,18 @@
     flex-direction: column;
     padding: 24px;
     z-index: 10;
+    max-height: 100%;
+  }
+  .sheet-toggle {
+    display: none;
   }
   .logo {
-    font-size: 24px;
-    font-weight: 800;
     margin-bottom: 30px;
-    color: #007aff;
+  }
+  .logo img {
+    display: block;
+    height: 60px;
+    width: auto;
   }
   .sidebar-content {
     display: flex;
@@ -339,6 +403,15 @@
     color: #8e8e93;
     font-size: 13px;
     z-index: 20;
+  }
+  .search-empty.error {
+    color: #ff3b30;
+  }
+  .search-empty .hint {
+    display: block;
+    margin-top: 4px;
+    font-size: 12px;
+    color: #aeaeb2;
   }
   .route-list {
     flex: 1;
@@ -547,5 +620,132 @@
   .export-btn:disabled {
     opacity: 0.6;
     cursor: default;
+  }
+
+  @media (max-width: 1180px) and (orientation: landscape) {
+    .sidebar {
+      width: 280px;
+      padding: 18px;
+    }
+    .logo {
+      margin-bottom: 18px;
+    }
+    .logo img {
+      height: 44px;
+    }
+    .search-wrap,
+    .theme-section {
+      margin-bottom: 16px;
+    }
+    .route-item {
+      padding: 12px;
+      margin-bottom: 10px;
+    }
+    .export-btn {
+      padding: 13px;
+      font-size: 15px;
+    }
+    .wrapped-btn {
+      padding: 12px;
+      font-size: 14px;
+    }
+  }
+
+  @media (max-width: 860px) and (orientation: portrait) {
+    .sidebar {
+      width: 100%;
+      max-height: 62dvh;
+      border-radius: 18px 18px 0 0;
+      box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.08);
+      padding: 8px 16px calc(16px + env(safe-area-inset-bottom));
+    }
+    .sheet-toggle {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+      flex-shrink: 0;
+      background: none;
+      border: none;
+      padding: 6px 0 10px;
+      color: #8e8e93;
+      font-size: 12px;
+      font-family: inherit;
+      cursor: pointer;
+    }
+    .sheet-grip {
+      width: 40px;
+      height: 4px;
+      border-radius: 2px;
+      background: #d1d1d6;
+    }
+    .logo {
+      margin-bottom: 16px;
+    }
+    .logo img {
+      height: 40px;
+    }
+    .search-wrap {
+      margin-bottom: 16px;
+    }
+    .search-results {
+      max-height: 180px;
+    }
+    .route-item {
+      padding: 12px;
+      margin-bottom: 10px;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+    .drag-icon {
+      display: none;
+    }
+    .mode-btn {
+      padding: 6px 9px;
+      font-size: 14px;
+    }
+    .move-btn,
+    .remove-btn {
+      padding: 8px 10px;
+      font-size: 13px;
+    }
+    .theme-section {
+      margin-bottom: 16px;
+    }
+    .theme-buttons {
+      gap: 6px;
+    }
+    .theme-btn {
+      padding: 9px 4px;
+      font-size: 12px;
+    }
+    .wrapped-btn,
+    .export-btn {
+      padding: 13px;
+      font-size: 15px;
+    }
+    .sidebar.collapsed .logo,
+    .sidebar.collapsed .sidebar-content {
+      display: none;
+    }
+    .sidebar.collapsed {
+      max-height: none;
+    }
+    .sidebar.collapsed .wrapped-btn,
+    .sidebar.collapsed .export-btn {
+      display: none;
+    }
+  }
+
+  @media (max-width: 420px) and (orientation: portrait) {
+    .sidebar {
+      padding: 8px 12px calc(12px + env(safe-area-inset-bottom));
+    }
+    .city {
+      font-size: 14px;
+    }
+    .custom-colors {
+      gap: 8px 12px;
+    }
   }
 </style>

@@ -63,8 +63,6 @@
   }
 
   function saveImage() {
-    // GL canvases clear their drawing buffer after compositing, so a render
-    // that happened frames ago won't be there anymore — redraw right before reading pixels.
     canvas?.update().render();
     const url = canvasEl.toDataURL('image/png');
     const a = document.createElement('a');
@@ -106,10 +104,14 @@
     display: flex;
     align-items: center;
     justify-content: center;
+    padding: 16px;
     z-index: 100;
   }
   .card {
-    width: 360px;
+    width: min(360px, 100%);
+    max-height: calc(100dvh - 32px);
+    overflow-y: auto;
+    overscroll-behavior: contain;
     background: #16161c;
     border-radius: 20px;
     padding: 20px;

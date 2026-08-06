@@ -5,7 +5,7 @@ import countryLabels from '../data/country-labels.json';
 import { project, type MapProjection } from './projection';
 import type { MapPalette } from './mapTheme';
 
-type LandPolygon = number[][][]; // rings -> points -> [lon, lat]
+type LandPolygon = number[][][]; 
 type CountryBorder = { name: string; polygons: LandPolygon[] };
 type CountryLabel = { name: string; lon: number; lat: number; area: number };
 

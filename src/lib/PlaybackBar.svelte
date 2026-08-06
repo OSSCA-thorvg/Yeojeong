@@ -3,7 +3,7 @@
   import { isPlaying, playbackProgress, isExporting } from './journey';
 
   const DURATION_MS = 18000;
-  const SPEEDS = [1, 1.5, 2];
+  const SPEEDS = [0.5, 1, 1.5, 2];
 
   let rafId: number | null = null;
   let lastTime = 0;
@@ -82,7 +82,7 @@
     left: 50%;
     bottom: 40px;
     transform: translateX(-50%);
-    width: min(600px, calc(100% - 48px));
+    width: min(600px, calc(100% - 32px));
     background: rgba(255, 255, 255, 0.85);
     backdrop-filter: blur(10px);
     border-radius: 20px;
@@ -140,5 +140,22 @@
     background: none;
     border: none;
     cursor: pointer;
+    padding: 8px;
+  }
+
+  @media (max-width: 860px), (max-height: 520px) {
+    .player-controls {
+      bottom: 12px;
+      padding: 10px 14px;
+      gap: 12px;
+      border-radius: 16px;
+    }
+    .play-btn {
+      width: 36px;
+      height: 36px;
+    }
+    .progress-input {
+      inset: -14px 0;
+    }
   }
 </style>

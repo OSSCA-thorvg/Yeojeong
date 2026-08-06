@@ -77,7 +77,6 @@ function segmentPosition(stops: JourneyStop[], progress: number, projection: Map
     return { x, y };
   });
   const segmentCount = points.length - 1;
-
   const rawWeights = stops.slice(1).map((stop, i) => {
     const mode = stop.arrivalMode as TransportMode;
     return haversineKm(stops[i].city, stop.city) / TRANSPORT_SPEED[mode];
@@ -114,13 +113,15 @@ function segmentCurve(from: Point, to: Point, mode: TransportMode | null): Cubic
       p3: to,
     };
   }
+
   const len = Math.hypot(dx, dy) || 1;
   let nx = -dy / len;
   let ny = dx / len;
   if (ny > 0) {
     nx = -nx;
     ny = -ny;
-  } 
+  }
+
   const offsetX = nx * len * ARC_BULGE_RATIO;
   const offsetY = ny * len * ARC_BULGE_RATIO;
   return {
@@ -235,12 +236,30 @@ export function buildJourneyPath(
   return scene;
 }
 
+export interface Bounds {
+  minX: number;
+  minY: number;
+  maxX: number;
+  maxY: number;
+}
+
 export interface MarkerState {
   at: Point;
   mode: TransportMode;
   dirX: 1 | -1;
-  from: Point;
-  to: Point;
+  /** 구간 곡선의 컨트롤 포인트를 감싸는 경계. 양 끝점뿐 아니라 호의 볼록한 부분까지 포함 */
+  bounds: Bounds;
+}
+
+function curveBounds(curve: CubicCurve): Bounds {
+  const xs = [curve.p0.x, curve.p1.x, curve.p2.x, curve.p3.x];
+  const ys = [curve.p0.y, curve.p1.y, curve.p2.y, curve.p3.y];
+  return {
+    minX: Math.min(...xs),
+    minY: Math.min(...ys),
+    maxX: Math.max(...xs),
+    maxY: Math.max(...ys),
+  };
 }
 
 export function currentMarkerState(
@@ -254,11 +273,10 @@ export function currentMarkerState(
   const segProgress = clamp01(traveled - markerIndex);
   const from = points[markerIndex];
   const to = points[markerIndex + 1];
-  // Only the first stop can have a null arrivalMode, and markerIndex + 1 is never 0.
   const mode = stops[markerIndex + 1].arrivalMode as TransportMode;
   const curve = segmentCurve(from, to, mode);
   const dirX: 1 | -1 = to.x >= from.x ? 1 : -1;
-  return { at: curvePoint(curve, segProgress), mode, dirX, from, to };
+  return { at: curvePoint(curve, segProgress), mode, dirX, bounds: curveBounds(curve) };
 }
 
 const ARRIVAL_PIN_COLOR: [number, number, number] = [217, 48, 37];
