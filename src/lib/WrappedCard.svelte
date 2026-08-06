@@ -19,6 +19,7 @@
   let canvas: InstanceType<ThorVGModule['Canvas']> | undefined;
   let scene: Scene | undefined;
   let rafId: number | null = null;
+  let initError = '';
 
   $: stats = computeJourneyStats($journey);
   $: accent = $mapPalette.accent;
@@ -46,7 +47,12 @@
   }
 
   onMount(async () => {
-    TVG = await getThorVG();
+    try {
+      TVG = await getThorVG();
+    } catch {
+      initError = '리캡 카드를 그릴 수 없어요. 브라우저를 최신 버전으로 업데이트한 뒤 새로고침해 주세요';
+      return;
+    }
     await loadLabelFont(TVG);
     canvas = new TVG.Canvas(`#${CANVAS_ID}`, { width: WIDTH, height: HEIGHT });
     animate();
@@ -82,6 +88,9 @@
       <span>🎁 나의 여행, 요약</span>
       <button type="button" class="close-btn" on:click={close} aria-label="닫기">✕</button>
     </div>
+    {#if initError}
+      <p class="init-error" role="alert">{initError}</p>
+    {/if}
     <canvas bind:this={canvasEl} id={CANVAS_ID} width={WIDTH} height={HEIGHT}></canvas>
     <ul class="legend">
       {#each stats.modeShares as share (share.mode)}
@@ -119,6 +128,12 @@
     display: flex;
     flex-direction: column;
     gap: 16px;
+  }
+  .init-error {
+    margin: 0;
+    color: #ffb4a8;
+    font-size: 13px;
+    line-height: 1.5;
   }
   .card-header {
     display: flex;

@@ -4,7 +4,15 @@
   import { getThorVG, type ThorVGModule } from './thorvg';
   import { buildWorldMap, buildCountryLabels, loadLabelFont } from './worldMap';
   import { buildJourneyPath, buildPulse, buildArrivalPin, currentMarkerState, type Bounds } from './journeyPath';
-  import { journey, playbackProgress, isPlaying, mapPalette, isExporting } from './journey';
+  import {
+    journey,
+    playbackProgress,
+    isPlaying,
+    playbackDuration,
+    playbackSpeed,
+    mapPalette,
+    isExporting,
+  } from './journey';
   import type { MapPalette } from './mapTheme';
   import {
     TRANSPORT_ANIMATION,
@@ -55,6 +63,10 @@
   let pinScene: Scene | undefined;
   let projection: MapProjection | undefined;
   let resizeObserver: ResizeObserver | undefined;
+  let initError = '';
+  let baseMapRafId: number | null = null;
+  let resizeRafId: number | null = null;
+  let pendingPalette: MapPalette | undefined;
 
   let canvasCenterX = 0;
   let canvasCenterY = 0;
@@ -289,6 +301,26 @@
     rootScene.add(labelScene);
   }
 
+  function scheduleBaseMap(palette: MapPalette) {
+    pendingPalette = palette;
+    if (baseMapRafId !== null) return;
+    baseMapRafId = requestAnimationFrame(() => {
+      baseMapRafId = null;
+      if (!pendingPalette) return;
+      buildBaseMap(pendingPalette);
+      pendingPalette = undefined;
+      applyTransform();
+    });
+  }
+
+  function scheduleResize() {
+    if (resizeRafId !== null) return;
+    resizeRafId = requestAnimationFrame(() => {
+      resizeRafId = null;
+      handleResize();
+    });
+  }
+
   function handleResize() {
     if (!TVG || !canvas || !projection || !wrapEl) return;
     const width = wrapEl.clientWidth;
@@ -306,7 +338,7 @@
     panX = x;
     panY = y;
 
-    buildBaseMap($mapPalette);
+    scheduleBaseMap($mapPalette);
     updateJourneyScene($journey, $playbackProgress, $mapPalette.accent);
     applyTransform();
   }
@@ -325,10 +357,7 @@
 
   $: if (rootScene) updateJourneyScene($journey, $playbackProgress, $mapPalette.accent);
 
-  $: if (rootScene && projection) {
-    buildBaseMap($mapPalette);
-    applyTransform();
-  }
+  $: if (rootScene && projection) scheduleBaseMap($mapPalette);
 
   function pulseTick(time: number) {
     pulseRafId = requestAnimationFrame(pulseTick);
@@ -379,7 +408,6 @@
     advanceIconAnimation(state.mode, frameMs);
   }
 
-  const EXPORT_DURATION_MS = 18000;
   const EXPORT_FPS = 30;
   /** 마지막 진행 단계 이후에도 녹화를 이어가 도착 장면까지 파일에 담기 위한 여유 시간 */
   const EXPORT_TAIL_MS = 1800;
@@ -444,6 +472,8 @@
 
     let compositeRafId = 0;
     let lastTime = 0;
+    const durationMs = $playbackDuration;
+    const speed = $playbackSpeed;
 
     function compositeFrame() {
       ctx!.setTransform(1, 0, 0, 1, 0, 0);
@@ -473,7 +503,7 @@
       lastTime = time;
       let done = false;
       playbackProgress.update((p) => {
-        const next = p + elapsed / EXPORT_DURATION_MS;
+        const next = p + (elapsed * speed) / durationMs;
         if (next >= 1) {
           done = true;
           return 1;
@@ -511,7 +541,12 @@
   }
 
   onMount(async () => {
-    TVG = await getThorVG();
+    try {
+      TVG = await getThorVG();
+    } catch {
+      initError = '지도를 그릴 수 없어요. 브라우저를 최신 버전으로 업데이트한 뒤 새로고침해 주세요';
+      return;
+    }
     const width = wrapEl.clientWidth || 1;
     const height = wrapEl.clientHeight || 1;
     canvas = new TVG.Canvas(`#${canvasId}`, { width, height });
@@ -524,7 +559,7 @@
     rootScene = new TVG.Scene();
     canvas.add(rootScene);
     handleResize();
-    resizeObserver = new ResizeObserver(() => handleResize());
+    resizeObserver = new ResizeObserver(scheduleResize);
     resizeObserver.observe(wrapEl);
 
     pulseRafId = requestAnimationFrame(pulseTick);
@@ -532,6 +567,8 @@
 
   onDestroy(() => {
     if (pulseRafId !== null) cancelAnimationFrame(pulseRafId);
+    if (baseMapRafId !== null) cancelAnimationFrame(baseMapRafId);
+    if (resizeRafId !== null) cancelAnimationFrame(resizeRafId);
     resizeObserver?.disconnect();
     // WASM 메모리는 JS GC 대상이 아니라 언마운트 시 직접 해제 필요
     rootScene?.dispose();
@@ -560,6 +597,9 @@
     class:mode-icon--hidden={!iconVisible}
     style="width: {ICON_PX}px; height: {ICON_PX}px; transform: translate({iconX}px, {iconY}px) scale({iconSizePx / ICON_PX}) scaleX({iconDir}) translate(-50%, {iconAnimMode && TRANSPORT_ANIMATION_ANCHOR[iconAnimMode] === 'bottom' ? '-100%' : '-50%'});"
   ></canvas>
+  {#if initError}
+    <div class="init-error" role="alert">{initError}</div>
+  {/if}
 </div>
 
 <style>
@@ -590,5 +630,21 @@
   }
   .mode-icon--hidden {
     opacity: 0;
+  }
+  .init-error {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    max-width: min(360px, calc(100% - 32px));
+    text-align: center;
+    line-height: 1.5;
+    font-size: 14px;
+    color: #1d1d1f;
+    background: rgba(255, 255, 255, 0.9);
+    padding: 16px 20px;
+    border-radius: 16px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.12);
+    z-index: 6;
   }
 </style>

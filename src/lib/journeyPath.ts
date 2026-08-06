@@ -39,6 +39,26 @@ const TRANSPORT_SPEED: Record<TransportMode, number> = {
   walk: 5,
 };
 
+export function journeyTravelHours(stops: JourneyStop[]): number {
+  let hours = 0;
+  for (let i = 1; i < stops.length; i++) {
+    const mode = stops[i].arrivalMode as TransportMode;
+    hours += haversineKm(stops[i - 1].city, stops[i].city) / TRANSPORT_SPEED[mode];
+  }
+  return hours;
+}
+
+const MIN_PLAYBACK_MS = 6000;
+const MAX_PLAYBACK_MS = 24000;
+const PLAYBACK_MS_PER_SQRT_HOUR = 5200;
+
+export function playbackDurationMs(stops: JourneyStop[]): number {
+  const hours = journeyTravelHours(stops);
+  if (hours <= 0) return MIN_PLAYBACK_MS;
+  const raw = PLAYBACK_MS_PER_SQRT_HOUR * Math.sqrt(hours);
+  return Math.min(MAX_PLAYBACK_MS, Math.max(MIN_PLAYBACK_MS, raw));
+}
+
 export function haversineKm(a: { lat: number; lng: number }, b: { lat: number; lng: number }): number {
   const R = 6371;
   const dLat = ((b.lat - a.lat) * Math.PI) / 180;

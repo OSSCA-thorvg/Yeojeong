@@ -150,7 +150,7 @@
       <ul class="search-results">
         {#each results as city (city.id)}
           <li>
-            <button type="button" on:mousedown|preventDefault={() => addStop(city)}>
+            <button type="button" on:mousedown|preventDefault on:click={() => addStop(city)}>
               {city.name} <span class="country">{city.country}</span>
             </button>
           </li>

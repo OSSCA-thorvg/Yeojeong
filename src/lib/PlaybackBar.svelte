@@ -1,19 +1,29 @@
 <script lang="ts">
   import { onDestroy } from 'svelte';
-  import { isPlaying, playbackProgress, isExporting } from './journey';
+  import { journey, isPlaying, playbackProgress, playbackDuration, playbackSpeed, isExporting } from './journey';
 
-  const DURATION_MS = 18000;
   const SPEEDS = [0.5, 1, 1.5, 2];
+  const NOTICE_MS = 2400;
 
   let rafId: number | null = null;
   let lastTime = 0;
-  let speed = 1;
+  let notice = '';
+  let noticeTimer: ReturnType<typeof setTimeout> | null = null;
+
+  function showNotice(message: string) {
+    notice = message;
+    if (noticeTimer !== null) clearTimeout(noticeTimer);
+    noticeTimer = setTimeout(() => {
+      notice = '';
+      noticeTimer = null;
+    }, NOTICE_MS);
+  }
 
   function tick(time: number) {
     const elapsed = lastTime === 0 ? 0 : time - lastTime;
     lastTime = time;
     playbackProgress.update((p) => {
-      const next = p + (elapsed * speed) / DURATION_MS;
+      const next = p + (elapsed * $playbackSpeed) / $playbackDuration;
       if (next >= 1) {
         stop();
         return 1;
@@ -36,7 +46,10 @@
     isPlaying.set(false);
   }
 
-  onDestroy(stop);
+  onDestroy(() => {
+    stop();
+    if (noticeTimer !== null) clearTimeout(noticeTimer);
+  });
 
   $: if ($isExporting && rafId !== null) {
     cancelAnimationFrame(rafId);
@@ -49,14 +62,22 @@
       stop();
       return;
     }
+    if ($journey.length < 2) {
+      showNotice('도시 2개 이상 등록해주세요');
+      return;
+    }
     if ($playbackProgress >= 1) playbackProgress.set(0);
     start();
   }
 
   function cycleSpeed() {
-    speed = SPEEDS[(SPEEDS.indexOf(speed) + 1) % SPEEDS.length];
+    playbackSpeed.set(SPEEDS[(SPEEDS.indexOf($playbackSpeed) + 1) % SPEEDS.length]);
   }
 </script>
+
+{#if notice}
+  <div class="notice" role="status" aria-live="polite">{notice}</div>
+{/if}
 
 <div class="player-controls">
   <button type="button" class="play-btn" disabled={$isExporting} on:click={togglePlay}>{$isPlaying ? '⏸' : '▶'}</button>
@@ -73,10 +94,27 @@
       aria-label="재생 진행률"
     />
   </div>
-  <button type="button" class="speed-btn" disabled={$isExporting} on:click={cycleSpeed}>{speed}x</button>
+  <button type="button" class="speed-btn" disabled={$isExporting} on:click={cycleSpeed}>{$playbackSpeed}x</button>
 </div>
 
 <style>
+  .notice {
+    position: absolute;
+    left: 50%;
+    bottom: 112px;
+    transform: translateX(-50%);
+    max-width: calc(100% - 32px);
+    background: rgba(0, 0, 0, 0.82);
+    color: #fff;
+    font-size: 14px;
+    font-weight: 500;
+    padding: 10px 18px;
+    border-radius: 999px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
+    white-space: nowrap;
+    pointer-events: none;
+    z-index: 11;
+  }
   .player-controls {
     position: absolute;
     left: 50%;
@@ -144,6 +182,11 @@
   }
 
   @media (max-width: 860px), (max-height: 520px) {
+    .notice {
+      bottom: 72px;
+      font-size: 13px;
+      padding: 8px 14px;
+    }
     .player-controls {
       bottom: 12px;
       padding: 10px 14px;
