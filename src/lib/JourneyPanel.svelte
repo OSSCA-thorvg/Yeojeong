@@ -1,3 +1,5 @@
+<!-- Side panel for editing the journey: search/add/reorder/remove stops, pick transport modes, and choose map theme colors. -->
+<!-- 여정을 편집하는 사이드 패널. 도시 검색·추가·순서변경·삭제, 이동 수단 선택, 지도 테마 색상 설정을 담당한다. -->
 <script lang="ts">
   import {
     journey,
@@ -45,6 +47,8 @@
 
   $: scheduleSearch(query);
 
+  // Debounces the search query and cancels any in-flight search before scheduling a new one.
+  // 검색어 입력을 디바운스하고, 진행 중인 검색을 취소한 뒤 새 검색을 예약한다.
   function scheduleSearch(value: string) {
     clearTimeout(debounceTimer);
     inFlight?.abort();
@@ -60,6 +64,8 @@
     debounceTimer = setTimeout(() => runSearch(value), SEARCH_DEBOUNCE_MS);
   }
 
+  // Runs the city search for the given query and updates the results or error state.
+  // 주어진 검색어로 도시 검색을 실행하고 결과 또는 에러 상태를 갱신한다.
   async function runSearch(value: string) {
     const controller = new AbortController();
     inFlight = controller;
@@ -81,11 +87,15 @@
     inFlight?.abort();
   });
 
+  // Adds a city as a new stop at the end of the journey.
+  // 도시를 여정의 마지막 정거장으로 추가한다.
   function addStop(city: City) {
     journey.update((stops) => [...stops, { city, arrivalMode: stops.length === 0 ? null : 'plane' }]);
     query = '';
   }
 
+  // Ensures the first stop has no arrival mode and every other stop has a valid one, defaulting to plane.
+  // 첫 정거장은 이동 수단이 없도록 하고, 나머지 정거장은 유효한 이동 수단(기본값 비행기)을 갖도록 정리한다.
   function normalizeArrivalModes(stops: JourneyStop[]) {
     return stops.map((stop, i) => ({
       ...stop,
@@ -93,14 +103,20 @@
     }));
   }
 
+  // Sets the arrival transport mode for the stop at the given index.
+  // 지정한 인덱스 정거장의 도착 이동 수단을 설정한다.
   function setArrivalMode(index: number, mode: TransportMode) {
     journey.update((stops) => stops.map((stop, i) => (i === index ? { ...stop, arrivalMode: mode } : stop)));
   }
 
+  // Removes the stop at the given index from the journey.
+  // 지정한 인덱스의 정거장을 여정에서 제거한다.
   function removeStop(index: number) {
     journey.update((stops) => normalizeArrivalModes(stops.filter((_, i) => i !== index)));
   }
 
+  // Moves a stop from one position to another in the journey order.
+  // 여정 순서에서 정거장을 한 위치에서 다른 위치로 옮긴다.
   function moveStop(from: number, to: number) {
     journey.update((stops) => {
       if (to < 0 || to >= stops.length || from === to) return stops;
@@ -111,21 +127,29 @@
     });
   }
 
+  // Records which stop started being dragged.
+  // 드래그가 시작된 정거장의 인덱스를 기록한다.
   function handleDragStart(index: number) {
     dragIndex = index;
   }
 
+  // Tracks which stop is currently being dragged over.
+  // 현재 드래그가 지나가고 있는 정거장을 추적한다.
   function handleDragOver(event: DragEvent, index: number) {
     event.preventDefault();
     dragOverIndex = index;
   }
 
+  // Completes the drag by moving the dragged stop to the drop position.
+  // 드래그한 정거장을 놓은 위치로 이동시켜 드래그를 완료한다.
   function handleDrop(index: number) {
     if (dragIndex !== null) moveStop(dragIndex, index);
     dragIndex = null;
     dragOverIndex = null;
   }
 
+  // Resets drag state when a drag operation ends.
+  // 드래그 작업이 끝나면 드래그 상태를 초기화한다.
   function handleDragEnd() {
     dragIndex = null;
     dragOverIndex = null;

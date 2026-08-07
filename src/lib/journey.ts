@@ -1,3 +1,5 @@
+// Central Svelte stores for app state: the journey itself, map theme/colors, and playback status. Persists the journey to localStorage.
+// 여정, 지도 테마/색상, 재생 상태 등 앱 전역 상태를 담는 Svelte 스토어 모음. 여정 데이터는 localStorage에 저장된다.
 import { derived, writable } from 'svelte/store';
 import type { City, JourneyStop, TransportMode } from './types';
 import { getMapPalette, type MapTheme } from './mapTheme';
@@ -7,6 +9,8 @@ const JOURNEY_STORAGE_KEY = 'yeojeong.journey';
 
 const TRANSPORT_MODE_SET = new Set<TransportMode>(['plane', 'ship', 'train', 'bus', 'car', 'bike', 'walk']);
 
+// Checks whether a value is a valid City object with a name and finite coordinates.
+// 값이 이름과 유효한 좌표를 가진 City 객체인지 확인한다.
 function isCity(value: unknown): value is City {
   const city = value as City | undefined;
   return (
@@ -18,6 +22,8 @@ function isCity(value: unknown): value is City {
   );
 }
 
+// Normalizes raw data into a valid array of JourneyStops, filling in defaults for missing or invalid fields.
+// 원본 데이터를 유효한 JourneyStop 배열로 정규화하고, 빠지거나 잘못된 값은 기본값으로 채운다.
 function sanitizeJourney(value: unknown): JourneyStop[] {
   if (!Array.isArray(value)) return [];
   return value
@@ -35,6 +41,8 @@ function sanitizeJourney(value: unknown): JourneyStop[] {
     }));
 }
 
+// Loads the saved journey from localStorage, returning an empty array if none exists or parsing fails.
+// localStorage에서 저장된 여정을 불러오고, 없거나 파싱에 실패하면 빈 배열을 반환한다.
 function loadJourney(): JourneyStop[] {
   try {
     const raw = localStorage.getItem(JOURNEY_STORAGE_KEY);
@@ -49,7 +57,7 @@ journey.subscribe((stops) => {
   try {
     localStorage.setItem(JOURNEY_STORAGE_KEY, JSON.stringify(stops));
   } catch {
-    // 저장 건너뛰기
+    // skip localStorage errors (e.g. quota exceeded, private mode, etc.)
   }
 });
 export const currentTheme = writable<MapTheme>('light');

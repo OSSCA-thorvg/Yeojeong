@@ -1,3 +1,5 @@
+<!-- Renders the interactive map canvas: world map, journey path, transport icon, zoom/pan, and follow-camera during playback. -->
+<!-- 지도를 렌더링하는 캔버스 컴포넌트. 세계 지도, 여정 경로, 이동 수단 아이콘, 확대/이동, 재생 중 카메라 추적을 담당한다. -->
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte';
   import type { Scene } from '@thorvg/webcanvas';
@@ -96,22 +98,30 @@
 
   let followZoomTarget = FOLLOW_MIN_ZOOM;
 
+  // Returns how close the current follow-zoom target is to the far end of its range, as a 0-1 ratio.
+  // 현재 카메라 추적 줌 목표가 원거리 쪽에 얼마나 가까운지 0~1 비율로 반환한다.
   function distanceFactor(): number {
     const span = FOLLOW_MAX_ZOOM - FOLLOW_MIN_ZOOM;
     return span > 0 ? Math.min(1, Math.max(0, (followZoomTarget - FOLLOW_MIN_ZOOM) / span)) : 0;
   }
 
+  // Calculates the on-screen pixel size of the transport icon, based on canvas size and travel distance.
+  // 캔버스 크기와 이동 거리에 따라 이동 수단 아이콘의 화면상 픽셀 크기를 계산한다.
   function iconDisplayPx(): number {
     const shortEdge = Math.min(canvasCenterX, canvasCenterY) * 2;
     const ratio = ICON_SPAN_RATIO_MIN + (ICON_SPAN_RATIO_MAX - ICON_SPAN_RATIO_MIN) * distanceFactor();
     return shortEdge * ratio;
   }
 
+  // Calculates a scale factor that keeps markers and route lines a consistent on-screen size regardless of zoom.
+  // 줌 배율과 무관하게 마커와 경로 선이 화면상 일정한 크기를 유지하도록 스케일 값을 계산한다.
   function markerVisualScale(): number {
     const markerBasePx = MARKER_BASE_PX_MAX - (MARKER_BASE_PX_MAX - MARKER_BASE_PX_MIN) * distanceFactor();
     return (markerBasePx * Math.min(zoom, ICON_DISPLAY_ZOOM_CAP)) / MARKER_REFERENCE_PX / zoom;
   }
 
+  // Updates the camera's follow-zoom target so the current segment's bounds fit within the viewport.
+  // 현재 구간의 경계가 화면 안에 들어오도록 카메라 추적 줌 목표를 갱신한다.
   function updateFollowZoomTargetForSegment(bounds: Bounds) {
     if (canvasCenterX === 0 || canvasCenterY === 0) return;
     const spanX = Math.max(bounds.maxX - bounds.minX, 1);
@@ -123,6 +133,8 @@
     followZoomTarget = Math.min(FOLLOW_MAX_ZOOM, Math.max(FOLLOW_MIN_ZOOM, fitZoom));
   }
 
+  // Loads and positions the Lottie animation for a transport mode on the icon canvas, replacing any previous one.
+  // 이동 수단에 맞는 Lottie 애니메이션을 아이콘 캔버스에 불러와 배치하고, 이전 애니메이션은 교체한다.
   function ensureIconAnimation(mode: TransportMode) {
     if (!TVG || !iconCanvas || iconAnimMode === mode) return;
     if (iconAnimation) {
@@ -151,6 +163,8 @@
     iconAnimMode = mode;
   }
 
+  // Advances the icon's Lottie animation frame based on elapsed time and the mode's playback speed, skipping re-render if the frame didn't change.
+  // 경과 시간과 이동 수단별 재생 속도에 따라 아이콘 애니메이션 프레임을 진행시키고, 프레임이 그대로면 렌더링을 생략한다.
   function advanceIconAnimation(mode: TransportMode, frameMs: number) {
     if (!iconAnimation || iconTotalFrames <= 0) return;
     const step = (frameMs / 1000) * iconFps * TRANSPORT_ANIMATION_SPEED[mode];
@@ -165,6 +179,8 @@
     iconCanvas?.update().render();
   }
 
+  // Clamps a pan offset so the map can't be dragged past its edges at the current zoom level.
+  // 현재 줌 배율에서 지도가 가장자리를 넘어 드래그되지 않도록 팬 오프셋을 제한한다.
   function clampPan(x: number, y: number): [number, number] {
     const slackX = mapHalfWidth * zoom - canvasCenterX;
     const slackY = mapHalfHeight * zoom - canvasCenterY;
@@ -173,16 +189,22 @@
     return [clampedX, clampedY];
   }
 
+  // Applies the current zoom and pan as a scale/translate transform on the root scene.
+  // 현재 줌과 팬 값을 루트 씬에 스케일/이동 변환으로 적용한다.
   function setCameraTransform() {
     rootScene?.scale(zoom);
     rootScene?.translate(canvasCenterX + panX, canvasCenterY + panY);
   }
 
+  // Applies the camera transform and re-renders the map canvas.
+  // 카메라 변환을 적용하고 지도 캔버스를 다시 렌더링한다.
   function applyTransform() {
     setCameraTransform();
     canvas?.update().render();
   }
 
+  // Smoothly moves the camera's zoom and pan toward the current marker position, at a rate independent of frame rate.
+  // 프레임레이트와 무관한 속도로 카메라의 줌과 팬을 현재 마커 위치 쪽으로 부드럽게 이동시킨다.
   function followCamera(at: { x: number; y: number }, frameMs: number) {
     const ease = 1 - Math.pow(1 - FOLLOW_EASE, frameMs / FOLLOW_EASE_STEP_MS);
     zoom += (followZoomTarget - zoom) * ease;
@@ -192,6 +214,8 @@
     setCameraTransform();
   }
 
+  // Zooms the map to a new level while keeping the point under the pointer fixed in place.
+  // 포인터 아래의 지점이 고정된 채로 유지되도록 지도를 새 배율로 확대/축소한다.
   function zoomAt(pointerX: number, pointerY: number, nextZoomRaw: number) {
     const localX = (pointerX - canvasCenterX - panX) / zoom;
     const localY = (pointerY - canvasCenterY - panY) / zoom;
@@ -203,10 +227,14 @@
     applyTransform();
   }
 
+  // Returns the first two active pointers, used for pinch gestures.
+  // 핀치 제스처에 사용할, 현재 활성화된 포인터 중 처음 두 개를 반환한다.
   function pinchPointers(): PointerEvent[] {
     return [...activePointers.values()].slice(0, 2);
   }
 
+  // Calculates the distance and midpoint between the two pinch pointers, relative to the canvas.
+  // 두 핀치 포인터 사이의 거리와 중간점을 캔버스 기준 좌표로 계산한다.
   function pinchMetrics(): { dist: number; midX: number; midY: number } | null {
     const [a, b] = pinchPointers();
     if (!a || !b) return null;
@@ -219,6 +247,8 @@
     };
   }
 
+  // Starts a pinch-zoom gesture, recording the starting distance and zoom level.
+  // 핀치 줌 제스처를 시작하며 시작 거리와 줌 배율을 기록한다.
   function beginPinch() {
     const metrics = pinchMetrics();
     if (!metrics || metrics.dist === 0) return;
@@ -227,6 +257,8 @@
     pinchStartZoom = zoom;
   }
 
+  // Starts a drag-to-pan gesture, recording the starting pointer position and pan offset.
+  // 드래그로 지도를 이동시키는 제스처를 시작하며 시작 포인터 위치와 팬 오프셋을 기록한다.
   function beginDrag(e: PointerEvent) {
     dragging = true;
     dragStartX = e.clientX;
@@ -235,6 +267,8 @@
     dragStartPanY = panY;
   }
 
+  // Handles pointer press: starts a pinch if two pointers are down, otherwise starts a drag.
+  // 포인터가 눌렸을 때, 포인터가 두 개면 핀치를, 아니면 드래그를 시작한다.
   function onPointerDown(e: PointerEvent) {
     activePointers.set(e.pointerId, e);
     canvasEl.setPointerCapture(e.pointerId);
@@ -245,6 +279,8 @@
     beginDrag(e);
   }
 
+  // Handles pointer movement: updates pinch zoom or drag pan depending on the active gesture.
+  // 포인터 이동을 처리한다. 진행 중인 제스처에 따라 핀치 줌 또는 드래그 팬을 갱신한다.
   function onPointerMove(e: PointerEvent) {
     if (activePointers.has(e.pointerId)) activePointers.set(e.pointerId, e);
 
@@ -262,6 +298,8 @@
     applyTransform();
   }
 
+  // Handles pointer release: ends the gesture, or drops back to single-finger drag if one pointer remains.
+  // 포인터가 떼어졌을 때 제스처를 종료하고, 포인터가 하나 남으면 드래그로 전환한다.
   function onPointerUp(e: PointerEvent) {
     activePointers.delete(e.pointerId);
     if (canvasEl.hasPointerCapture(e.pointerId)) canvasEl.releasePointerCapture(e.pointerId);
@@ -274,17 +312,23 @@
     dragging = false;
   }
 
+  // Zooms in on double-click/double-tap, centered on the clicked point.
+  // 더블클릭/더블탭 지점을 중심으로 지도를 확대한다.
   function onDoubleTap(e: MouseEvent) {
     const rect = canvasEl.getBoundingClientRect();
     zoomAt(e.clientX - rect.left, e.clientY - rect.top, zoom * 1.8);
   }
 
+  // Zooms the map with the scroll wheel, centered on the cursor position.
+  // 휠 스크롤로 지도를 확대/축소한다. 커서 위치를 중심으로 확대/축소된다.
   function onWheel(e: WheelEvent) {
     e.preventDefault();
     const rect = canvasEl.getBoundingClientRect();
     zoomAt(e.clientX - rect.left, e.clientY - rect.top, zoom * Math.exp(-e.deltaY * 0.001));
   }
 
+  // Rebuilds the world map and country label scenes with a given color palette, replacing the previous ones.
+  // 주어진 색상 팔레트로 세계 지도와 국가 라벨 씬을 다시 만들고, 기존 씬은 교체한다.
   function buildBaseMap(palette: MapPalette) {
     if (!TVG || !rootScene || !projection) return;
     if (worldMapScene) {
@@ -301,6 +345,8 @@
     rootScene.add(labelScene);
   }
 
+  // Schedules a base map rebuild on the next animation frame, coalescing repeated palette changes into one rebuild.
+  // 다음 애니메이션 프레임에 지도를 다시 그리도록 예약한다. 연속된 팔레트 변경은 한 번의 재구성으로 합친다.
   function scheduleBaseMap(palette: MapPalette) {
     pendingPalette = palette;
     if (baseMapRafId !== null) return;
@@ -313,6 +359,8 @@
     });
   }
 
+  // Schedules a resize handler on the next animation frame, coalescing repeated resize events.
+  // 다음 애니메이션 프레임에 리사이즈 처리를 예약한다. 연속된 리사이즈 이벤트를 하나로 합친다.
   function scheduleResize() {
     if (resizeRafId !== null) return;
     resizeRafId = requestAnimationFrame(() => {
@@ -321,6 +369,8 @@
     });
   }
 
+  // Resizes the canvas and recalculates the map projection, pan bounds, and scenes to fit the new size.
+  // 캔버스 크기를 조정하고 새 크기에 맞춰 지도 투영, 팬 범위, 씬을 다시 계산한다.
   function handleResize() {
     if (!TVG || !canvas || !projection || !wrapEl) return;
     const width = wrapEl.clientWidth;
@@ -343,6 +393,8 @@
     applyTransform();
   }
 
+  // Rebuilds the journey route scene for the current stops and playback progress, replacing the previous one.
+  // 현재 정거장과 재생 진행률에 맞춰 여정 경로 씬을 다시 만들고, 기존 씬은 교체한다.
   function updateJourneyScene(stops: JourneyStop[], progress: number, accent: [number, number, number]) {
     if (!TVG || !rootScene || !projection) return;
     const nextScene = buildJourneyPath(TVG, stops, progress, projection, accent, markerVisualScale());
@@ -359,6 +411,8 @@
 
   $: if (rootScene && projection) scheduleBaseMap($mapPalette);
 
+  // Per-frame loop: updates the camera, and draws the pulse ring, transport icon, or arrival pin at the marker's current position.
+  // 매 프레임 실행되는 루프. 카메라를 갱신하고, 마커의 현재 위치에 펄스 링, 이동 수단 아이콘, 또는 도착 핀을 그린다.
   function pulseTick(time: number) {
     pulseRafId = requestAnimationFrame(pulseTick);
     const frameMs = lastPulseTime === 0 ? FOLLOW_EASE_STEP_MS : Math.min(time - lastPulseTime, MAX_FRAME_MS);
@@ -412,6 +466,8 @@
   /** 마지막 진행 단계 이후에도 녹화를 이어가 도착 장면까지 파일에 담기 위한 여유 시간 */
   const EXPORT_TAIL_MS = 1800;
 
+  // Picks the first video MIME type the browser supports, for exporting the journey video.
+  // 여정 영상을 내보낼 때 사용할, 브라우저가 지원하는 첫 번째 비디오 MIME 타입을 고른다.
   function pickExportMimeType(): string {
     const candidates = [
       'video/mp4;codecs=avc1.640028',
@@ -426,6 +482,8 @@
     return 'video/webm';
   }
 
+  // Plays back the journey while recording the composited map and icon canvases into a downloadable video file.
+  // 여정을 재생하면서 지도와 아이콘 캔버스를 합성해 다운로드 가능한 영상 파일로 녹화한다.
   export function exportVideo() {
     if (!wrapEl || !canvasEl || !iconCanvasEl || $isExporting) return;
     if ($journey.length < 2) return;
@@ -442,10 +500,7 @@
     const width = wrapEl.clientWidth;
     const height = wrapEl.clientHeight;
 
-    // CSS 크기가 아니라 지도 캔버스의 실제 백킹 해상도로 녹화. ThorVG 는 2배 디스플레이에서
-    // 약 1.75배로 렌더하는데 CSS 크기로 캡처하면 그 디테일이 버려짐
     const pixelRatio = width > 0 ? canvasEl.width / width : 1;
-    // h264 는 짝수 해상도 필요
     const outWidth = Math.round((width * pixelRatio) / 2) * 2;
     const outHeight = Math.round((height * pixelRatio) / 2) * 2;
 
@@ -475,6 +530,8 @@
     const durationMs = $playbackDuration;
     const speed = $playbackSpeed;
 
+    // Draws the current map canvas and transport icon onto the export canvas for one frame.
+    // 지도 캔버스와 이동 수단 아이콘을 내보내기용 캔버스에 한 프레임 그린다.
     function compositeFrame() {
       ctx!.setTransform(1, 0, 0, 1, 0, 0);
       ctx!.clearRect(0, 0, outWidth, outHeight);
@@ -493,11 +550,15 @@
       compositeRafId = requestAnimationFrame(compositeFrame);
     }
 
+    // Stops the compositing loop and the media recorder.
+    // 합성 루프와 미디어 레코더를 정지한다.
     function finish() {
       cancelAnimationFrame(compositeRafId);
       recorder.stop();
     }
 
+    // Advances playback progress each frame during export, finishing (with a tail delay) once it reaches the end.
+    // 내보내기 중 매 프레임 재생 진행률을 진행시키고, 끝에 도달하면 여유 시간 후 종료한다.
     function progressTick(time: number) {
       const elapsed = lastTime === 0 ? 0 : time - lastTime;
       lastTime = time;
@@ -511,8 +572,6 @@
         return next;
       });
       if (done) {
-        // 진행률 1 에 도달한 프레임은 아직 합성 전이고, 도착 핀은 합성된 뒤에야 나타남.
-        // 끊기 전에 루프를 잠깐 더 돌리기
         setTimeout(finish, EXPORT_TAIL_MS);
         return;
       }
@@ -570,7 +629,6 @@
     if (baseMapRafId !== null) cancelAnimationFrame(baseMapRafId);
     if (resizeRafId !== null) cancelAnimationFrame(resizeRafId);
     resizeObserver?.disconnect();
-    // WASM 메모리는 JS GC 대상이 아니라 언마운트 시 직접 해제 필요
     rootScene?.dispose();
     canvas?.destroy();
     iconAnimation?.dispose();

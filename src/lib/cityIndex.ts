@@ -1,9 +1,10 @@
+// Searches for cities via the Mapbox geocoding API and caches results to avoid duplicate requests.
+// Mapbox 지오코딩 API로 도시를 검색하고, 결과를 캐싱해 중복 요청을 방지한다.
 import type { City } from './types';
 
 const ENDPOINT = 'https://api.mapbox.com/search/geocode/v6/forward';
 const TOKEN = import.meta.env.VITE_MAPBOX_TOKEN;
 
-// place=도시, locality=도시 내 지역, region=주/도(제주도·하와이·발리), district=군/현
 const FEATURE_TYPES = 'place,locality,region,district';
 
 export const MIN_QUERY_LENGTH = 2;
@@ -15,6 +16,8 @@ const HANGUL = /[가-힣]/;
 
 const cache = new Map<string, City[]>();
 
+// Checks whether the given text contains Hangul characters.
+// 주어진 텍스트에 한글이 포함되어 있는지 확인한다.
 export const hasHangul = (text: string) => HANGUL.test(text);
 
 interface MapboxFeature {
@@ -27,6 +30,8 @@ interface MapboxFeature {
   };
 }
 
+// Searches for cities matching the query via the Mapbox geocoding API, using a cache to avoid duplicate requests.
+// Mapbox 지오코딩 API로 검색어에 맞는 도시를 검색하고, 캐시를 사용해 중복 요청을 피한다.
 export async function searchCities(query: string, signal?: AbortSignal): Promise<City[]> {
   const key = query.trim().toLowerCase();
   if (key.length < MIN_QUERY_LENGTH) return [];
@@ -56,6 +61,8 @@ export async function searchCities(query: string, signal?: AbortSignal): Promise
   return cities;
 }
 
+// Converts raw Mapbox features into City objects, filtering out invalid or duplicate entries.
+// Mapbox 응답을 City 객체로 변환하고, 유효하지 않거나 중복된 항목을 걸러낸다.
 function toCities(features: MapboxFeature[], query: string): City[] {
   const koreanOnly = hasHangul(query);
   const seen = new Set<string>();
@@ -84,6 +91,8 @@ function toCities(features: MapboxFeature[], query: string): City[] {
     .slice(0, RESULT_LIMIT);
 }
 
+// Stores a search result in the cache, evicting the oldest entry when the cache is full.
+// 검색 결과를 캐시에 저장하고, 캐시가 가득 차면 가장 오래된 항목을 제거한다.
 function remember(key: string, cities: City[]) {
   if (cache.size >= CACHE_LIMIT) {
     const oldest = cache.keys().next().value;

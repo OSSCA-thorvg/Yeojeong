@@ -1,3 +1,5 @@
+// Defines per-transport-mode Lottie animation data and their display options (scale, speed, anchor, facing).
+// 이동 수단별 Lottie 애니메이션 데이터와 표시 옵션(배율, 속도, 기준점, 방향)을 정의한다.
 import type { TransportMode } from './types';
 
 import planeAnim from '../data/animations/TriPriend.json?raw';

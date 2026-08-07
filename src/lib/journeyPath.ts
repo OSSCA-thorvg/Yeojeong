@@ -1,3 +1,5 @@
+// Builds the ThorVG scenes for the journey route: path curves, stop markers, arrival pin, and pulse animation.
+// 여정 경로의 ThorVG 장면(경로 곡선, 정거장 마커, 도착 핀, 펄스 애니메이션)을 만든다.
 import type { Scene, ThorVGNamespace } from '@thorvg/webcanvas';
 import type { JourneyStop, TransportMode } from './types';
 import { project, type MapProjection } from './projection';
@@ -25,6 +27,8 @@ const TRANSPORT_STYLE: Record<TransportMode, { width: number; dash?: number[] }>
   walk: { width: 1.6, dash: [1, 3] },
 };
 
+// Returns the color for a transport mode, using the accent color for plane and a fixed color for others.
+// 이동 수단의 색상을 반환한다. 비행기는 강조색을, 나머지는 고정 색상을 사용한다.
 export function transportColor(mode: TransportMode, accent: [number, number, number]): [number, number, number] {
   return mode === 'plane' ? accent : TRANSPORT_COLOR[mode];
 }
@@ -39,6 +43,8 @@ const TRANSPORT_SPEED: Record<TransportMode, number> = {
   walk: 5,
 };
 
+// Calculates total travel time in hours across all stops, based on distance and transport speed per segment.
+// 각 구간의 거리와 이동 수단 속도를 기반으로 전체 여정의 소요 시간(시간 단위)을 계산한다.
 export function journeyTravelHours(stops: JourneyStop[]): number {
   let hours = 0;
   for (let i = 1; i < stops.length; i++) {
@@ -52,6 +58,8 @@ const MIN_PLAYBACK_MS = 6000;
 const MAX_PLAYBACK_MS = 24000;
 const PLAYBACK_MS_PER_SQRT_HOUR = 5200;
 
+// Converts a journey's total travel hours into a playback duration in milliseconds, clamped to a min/max range.
+// 여정의 총 소요 시간을 재생 시간(밀리초)으로 변환하고, 최소/최대 범위로 제한한다.
 export function playbackDurationMs(stops: JourneyStop[]): number {
   const hours = journeyTravelHours(stops);
   if (hours <= 0) return MIN_PLAYBACK_MS;
@@ -59,6 +67,8 @@ export function playbackDurationMs(stops: JourneyStop[]): number {
   return Math.min(MAX_PLAYBACK_MS, Math.max(MIN_PLAYBACK_MS, raw));
 }
 
+// Calculates the great-circle distance in kilometers between two lat/lng coordinates.
+// 두 위경도 좌표 사이의 대권 거리를 킬로미터 단위로 계산한다.
 export function haversineKm(a: { lat: number; lng: number }, b: { lat: number; lng: number }): number {
   const R = 6371;
   const dLat = ((b.lat - a.lat) * Math.PI) / 180;
@@ -69,10 +79,14 @@ export function haversineKm(a: { lat: number; lng: number }, b: { lat: number; l
   return 2 * R * Math.asin(Math.sqrt(h));
 }
 
+// Appends an alpha value to an RGB color.
+// RGB 색상에 알파값을 추가한다.
 function withAlpha(color: [number, number, number], alpha: number): [number, number, number, number] {
   return [color[0], color[1], color[2], alpha];
 }
 
+// Clamps a number to the 0-1 range.
+// 숫자를 0~1 범위로 제한한다.
 function clamp01(n: number): number {
   return Math.min(1, Math.max(0, n));
 }
@@ -91,6 +105,8 @@ interface CubicCurve {
   p3: Point;
 }
 
+// Projects journey stops to screen points and finds how far along the route the current progress reaches, weighted by segment travel time.
+// 여정의 정거장들을 화면 좌표로 투영하고, 각 구간의 이동 시간에 따라 현재 진행률이 경로상 어디까지 도달했는지 계산한다.
 function segmentPosition(stops: JourneyStop[], progress: number, projection: MapProjection) {
   const points: Point[] = stops.map((stop) => {
     const [x, y] = project(stop.city.lat, stop.city.lng, projection);
@@ -122,6 +138,8 @@ function segmentPosition(stops: JourneyStop[], progress: number, projection: Map
   return { points, segmentCount, traveled };
 }
 
+// Builds a cubic curve between two points: a straight line for ground transport, or a bulging arc for planes.
+// 두 지점 사이의 3차 곡선을 만든다. 육상 이동은 직선, 비행기는 볼록하게 휘는 호를 사용한다.
 function segmentCurve(from: Point, to: Point, mode: TransportMode | null): CubicCurve {
   const dx = to.x - from.x;
   const dy = to.y - from.y;
@@ -152,10 +170,14 @@ function segmentCurve(from: Point, to: Point, mode: TransportMode | null): Cubic
   };
 }
 
+// Linearly interpolates between two points.
+// 두 점 사이를 선형 보간한다.
 function lerpPoint(a: Point, b: Point, t: number): Point {
   return { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t };
 }
 
+// Calculates the point at parameter t along a cubic Bezier curve.
+// 3차 베지어 곡선에서 매개변수 t에 해당하는 점을 계산한다.
 function curvePoint(curve: CubicCurve, t: number): Point {
   const { p0, p1, p2, p3 } = curve;
   const a = lerpPoint(p0, p1, t);
@@ -164,6 +186,8 @@ function curvePoint(curve: CubicCurve, t: number): Point {
   return lerpPoint(lerpPoint(a, b, t), lerpPoint(b, c, t), t);
 }
 
+// Splits a cubic Bezier curve into two curves at parameter t.
+// 3차 베지어 곡선을 매개변수 t 지점에서 두 개의 곡선으로 나눈다.
 function splitCurve(curve: CubicCurve, t: number): [CubicCurve, CubicCurve] {
   const { p0, p1, p2, p3 } = curve;
   const a = lerpPoint(p0, p1, t);
@@ -178,6 +202,8 @@ function splitCurve(curve: CubicCurve, t: number): [CubicCurve, CubicCurve] {
   ];
 }
 
+// Draws a cubic curve as a stroked shape and adds it to the scene.
+// 3차 곡선을 선으로 그려 장면에 추가한다.
 function drawCurve(
   TVG: ThorVGNamespace,
   scene: Scene,
@@ -193,6 +219,8 @@ function drawCurve(
   scene.add(line);
 }
 
+// Builds the full journey path scene: route curves colored by traveled/upcoming progress, plus stop markers.
+// 이동 경로 전체 장면을 만든다. 지난/남은 구간을 다른 색으로 표시하고, 정거장 마커를 그린다.
 export function buildJourneyPath(
   TVG: ThorVGNamespace,
   stops: JourneyStop[],
@@ -271,6 +299,8 @@ export interface MarkerState {
   bounds: Bounds;
 }
 
+// Calculates the bounding box of a cubic curve's control points.
+// 3차 곡선의 컨트롤 포인트를 감싸는 경계 상자를 계산한다.
 function curveBounds(curve: CubicCurve): Bounds {
   const xs = [curve.p0.x, curve.p1.x, curve.p2.x, curve.p3.x];
   const ys = [curve.p0.y, curve.p1.y, curve.p2.y, curve.p3.y];
@@ -282,6 +312,8 @@ function curveBounds(curve: CubicCurve): Bounds {
   };
 }
 
+// Calculates the current position, transport mode, and facing direction of the traveling marker along the journey.
+// 여정 진행에 따라 이동 중인 마커의 현재 위치, 이동 수단, 방향을 계산한다.
 export function currentMarkerState(
   stops: JourneyStop[],
   progress: number,
@@ -301,6 +333,8 @@ export function currentMarkerState(
 
 const ARRIVAL_PIN_COLOR: [number, number, number] = [217, 48, 37];
 
+// Builds a map pin shape (teardrop with a hole) marking the arrival point.
+// 도착 지점을 표시하는 물방울 모양 핀(가운데 구멍 포함)을 만든다.
 export function buildArrivalPin(TVG: ThorVGNamespace, at: Point, visualScale: number): Scene {
   const scene = new TVG.Scene();
   const headRadius = MARKER_RADIUS * 1.4 * visualScale;
@@ -330,6 +364,8 @@ export function buildArrivalPin(TVG: ThorVGNamespace, at: Point, visualScale: nu
   return scene;
 }
 
+// Builds an expanding, fading ring shape used as a pulse animation around a point.
+// 지점 주변에 퍼지면서 옅어지는 고리 모양의 펄스 애니메이션을 만든다.
 export function buildPulse(
   TVG: ThorVGNamespace,
   at: Point,

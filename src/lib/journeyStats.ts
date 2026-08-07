@@ -1,3 +1,5 @@
+// Computes summary statistics for a journey: total distance, country/city counts, and per-transport-mode distance share.
+// 여정의 총 거리, 국가/도시 수, 이동 수단별 거리 비중 등 요약 통계를 계산한다.
 import { haversineKm } from './journeyPath';
 import { TRANSPORT_MODES } from './transportIcons';
 import type { JourneyStop, TransportMode } from './types';
@@ -16,6 +18,8 @@ export interface JourneyStats {
   modeShares: ModeShare[];
 }
 
+// Computes summary statistics for a journey: total distance, country/city counts, and distance share per transport mode.
+// 여정의 요약 통계를 계산한다. 총 이동 거리, 국가/도시 수, 이동 수단별 거리 비중을 구한다.
 export function computeJourneyStats(stops: JourneyStop[]): JourneyStats {
   const modeKm: Record<TransportMode, number> = {
     plane: 0,

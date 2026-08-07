@@ -1,3 +1,5 @@
+<!-- "Wrapped" recap card component: renders the animated journey summary scene (distance, stats, mode-share chart). -->
+<!-- '여정 요약(Wrapped)' 리캡 카드 컴포넌트. 거리, 통계, 이동 수단 비중 차트를 애니메이션 장면으로 렌더링한다. -->
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte';
   import type { Scene } from '@thorvg/webcanvas';
@@ -24,6 +26,8 @@
   $: stats = computeJourneyStats($journey);
   $: accent = $mapPalette.accent;
 
+  // Rebuilds and renders the wrapped card scene for a given animation progress, replacing the previous scene.
+  // 주어진 애니메이션 진행률에 맞춰 리캡 카드 씬을 다시 만들어 렌더링하고, 기존 씬은 교체한다.
   function renderFrame(progress: number) {
     if (!TVG || !canvas) return;
     const next = buildWrappedScene(TVG, stats, progress, accent, WIDTH, HEIGHT);
@@ -36,6 +40,8 @@
     canvas.update().render();
   }
 
+  // Runs the wrapped card's draw-in animation from 0 to 1 progress over a fixed duration.
+  // 리캡 카드가 그려지는 애니메이션을 정해진 시간 동안 진행률 0에서 1까지 실행한다.
   function animate() {
     const start = performance.now();
     const step = (time: number) => {
@@ -64,10 +70,14 @@
     canvas?.destroy();
   });
 
+  // Closes the wrapped card modal.
+  // 리캡 카드 모달을 닫는다.
   function close() {
     isWrappedOpen.set(false);
   }
 
+  // Saves the wrapped card canvas as a downloadable PNG image.
+  // 리캡 카드 캔버스를 다운로드 가능한 PNG 이미지로 저장한다.
   function saveImage() {
     canvas?.update().render();
     const url = canvasEl.toDataURL('image/png');

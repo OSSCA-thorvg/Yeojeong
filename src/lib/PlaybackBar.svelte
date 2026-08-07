@@ -1,3 +1,5 @@
+<!-- Playback control bar: play/pause, speed selection, progress scrubbing, and export. -->
+<!-- 재생 컨트롤 바. 재생/일시정지, 배속 선택, 진행률 조절, 내보내기 기능을 제공한다. -->
 <script lang="ts">
   import { onDestroy } from 'svelte';
   import { journey, isPlaying, playbackProgress, playbackDuration, playbackSpeed, isExporting } from './journey';
@@ -10,6 +12,8 @@
   let notice = '';
   let noticeTimer: ReturnType<typeof setTimeout> | null = null;
 
+  // Shows a temporary notice message that disappears after a fixed duration.
+  // 일정 시간 뒤 사라지는 알림 메시지를 보여준다.
   function showNotice(message: string) {
     notice = message;
     if (noticeTimer !== null) clearTimeout(noticeTimer);
@@ -19,6 +23,8 @@
     }, NOTICE_MS);
   }
 
+  // Per-frame loop that advances playback progress based on elapsed time and speed, stopping at the end.
+  // 매 프레임마다 경과 시간과 배속에 맞춰 재생 진행률을 진행시키고, 끝에 도달하면 정지하는 루프.
   function tick(time: number) {
     const elapsed = lastTime === 0 ? 0 : time - lastTime;
     lastTime = time;
@@ -33,6 +39,8 @@
     if (rafId !== null) rafId = requestAnimationFrame(tick);
   }
 
+  // Starts playback.
+  // 재생을 시작한다.
   function start() {
     if (rafId !== null) return;
     lastTime = 0;
@@ -40,6 +48,8 @@
     rafId = requestAnimationFrame(tick);
   }
 
+  // Stops playback.
+  // 재생을 정지한다.
   function stop() {
     if (rafId !== null) cancelAnimationFrame(rafId);
     rafId = null;
@@ -56,6 +66,8 @@
     rafId = null;
   }
 
+  // Toggles play/pause, resetting progress if playback had already finished and warning if the journey is too short.
+  // 재생/일시정지를 전환한다. 이미 끝까지 재생됐으면 진행률을 초기화하고, 여정이 너무 짧으면 경고를 띄운다.
   function togglePlay() {
     if ($isExporting) return;
     if ($isPlaying) {
@@ -70,6 +82,8 @@
     start();
   }
 
+  // Cycles the playback speed to the next value in the preset list.
+  // 재생 배속을 미리 정의된 목록의 다음 값으로 전환한다.
   function cycleSpeed() {
     playbackSpeed.set(SPEEDS[(SPEEDS.indexOf($playbackSpeed) + 1) % SPEEDS.length]);
   }

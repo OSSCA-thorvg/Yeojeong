@@ -1,3 +1,5 @@
+// Defines the list of transport modes with their display icons and Korean labels.
+// 이동 수단 목록과 각 수단의 표시 아이콘, 한글 라벨을 정의한다.
 import type { TransportMode } from './types';
 
 export const TRANSPORT_MODES: TransportMode[] = ['plane', 'ship', 'car', 'train', 'bus', 'bike', 'walk'];

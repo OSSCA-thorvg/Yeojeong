@@ -1,18 +1,26 @@
+// Builds the "wrapped" recap scene: an animated ring chart of transport mode shares plus distance/stat counters.
+// '여정 요약(Wrapped)' 장면을 만든다. 이동 수단 비중 도넛 차트와 거리·통계 수치를 애니메이션으로 표시한다.
 import type { Scene, ThorVGNamespace } from '@thorvg/webcanvas';
 import { transportColor } from './journeyPath';
 import type { JourneyStats } from './journeyStats';
 
 const FONT = 'inter';
 
+// Clamps a number to the 0-1 range.
+// 숫자를 0~1 범위로 제한한다.
 function clamp01(n: number): number {
   return Math.min(1, Math.max(0, n));
 }
 
+// Applies a cubic ease-out curve to a progress value between 0 and 1.
+// 0~1 사이의 진행값에 3차 이즈아웃 곡선을 적용한다.
 export function easeOutCubic(t: number): number {
   const c = clamp01(t);
   return 1 - Math.pow(1 - c, 3);
 }
 
+// Builds the "wrapped" recap scene: an animated ring chart of transport mode shares plus total distance and stat counters.
+// '여정 요약' 장면을 만든다. 이동 수단 비중을 나타내는 애니메이션 원형 차트와 총 거리, 통계 수치를 표시한다.
 export function buildWrappedScene(
   TVG: ThorVGNamespace,
   stats: JourneyStats,
@@ -37,6 +45,8 @@ export function buildWrappedScene(
   const outerR = Math.min(width, height) * 0.24;
   const strokeW = outerR * 0.26;
 
+  // Adds a centered text label to the scene.
+  // 장면에 중앙 정렬된 텍스트 라벨을 추가한다.
   const addText = (content: string, size: number, x: number, y: number, color: [number, number, number]) => {
     const text = new TVG.Text();
     text.font(FONT).fontSize(size).align(0.5, 0.5).fill(...color);
