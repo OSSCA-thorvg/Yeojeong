@@ -16,7 +16,7 @@
 | 이동 수단 | 비행기 · 배 · 기차 · 버스 · 자동차 · 자전거 · 도보 (구간별 지정) |
 | 지도 테마 | 3종 기본 프리셋 + 바다 · 육지 · 라벨 색 커스텀 |
 | 재생 제어 | 재생 · 일시정지 · 배속 · 진행 위치 이동 |
-| 영상 내보내기 | `MediaRecorder`로 mp4 저장 (미지원 브라우저는 webm으로 자동 대체) |
+| 영상 내보내기 | `MediaRecorder`로 mp4 저장  |
 | 여행 요약 | 총 거리, 방문 국가 · 도시 수, 이동 수단별 거리 비중을 리캡 카드(PNG)로 저장 |
 
 ## 기술 스택
@@ -44,8 +44,4 @@ npm run dev
 | `npm run check` | Svelte/TypeScript 타입 체크 |
 | `npm run gen:map` | 세계 지도 데이터(TopoJSON) 재생성 |
 
-> Mapbox 토큰은 빌드 시 번들에 그대로 삽입되므로, [Mapbox 콘솔](https://account.mapbox.com/access-tokens)에서 URL 제한을 걸어 두는 것을 권장합니다.
 
-## 배포
-
-`main` 브랜치에 푸시되면 GitHub Actions(`.github/workflows/deploy.yml`)가 자동으로 빌드하여 GitHub Pages([ossca-thorvg.github.io/Yeojeong](https://ossca-thorvg.github.io/Yeojeong/))에 배포합니다.
